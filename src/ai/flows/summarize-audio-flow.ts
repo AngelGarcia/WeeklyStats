@@ -1,10 +1,6 @@
 'use server';
 /**
- * @fileOverview A flow to summarize an audio recording of a meeting topic.
- *
- * - summarizeAudio - A function that takes audio and topic context and returns a summary.
- * - SummarizeAudioInput - The input type for the summarizeAudio function.
- * - SummarizeAudioOutput - The return type for the summarizeAudio function.
+ * @fileOverview This file is deprecated. Use summarize-text-flow.ts instead.
  */
 
 import {ai} from '@/ai/genkit';
@@ -27,7 +23,13 @@ export type SummarizeAudioOutput = z.infer<typeof SummarizeAudioOutputSchema>;
 
 
 export async function summarizeAudio(input: SummarizeAudioInput): Promise<SummarizeAudioOutput> {
-  return summarizeAudioFlow(input);
+  // This flow is deprecated.
+  // For new implementations, first use `transcribe-audio-flow.ts` to get the text,
+  // and then use `summarize-text-flow.ts` to summarize it.
+  // This implementation remains for backwards compatibility if needed, but chains transcription and summarization.
+  
+  const { output } = await summarizeAudioPrompt(input);
+  return output!;
 }
 
 
@@ -49,15 +51,3 @@ Format the output as a clear and brief summary.
 
 Audio: {{media url=audioDataUri}}`,
 });
-
-const summarizeAudioFlow = ai.defineFlow(
-  {
-    name: 'summarizeAudioFlow',
-    inputSchema: SummarizeAudioInputSchema,
-    outputSchema: SummarizeAudioOutputSchema,
-  },
-  async input => {
-    const {output} = await summarizeAudioPrompt(input);
-    return output!;
-  }
-);

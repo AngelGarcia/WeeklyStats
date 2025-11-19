@@ -85,7 +85,11 @@ export default function MeetingDashboardPage() {
   };
 
   const handleUpdateTopic = (updatedTopic: Topic) => {
-    setAgenda(agenda.map(topic => topic.id === updatedTopic.id ? updatedTopic : topic));
+    setAgenda(currentAgenda => 
+      currentAgenda.map(topic => 
+        topic.id === updatedTopic.id ? { ...topic, ...updatedTopic } : topic
+      )
+    );
   };
 
   const handleEndMeeting = () => {

@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RefreshCw, Trash2, Clock, Mic, StopCircle, Loader2, Check } from 'lucide-react';
+import { Play, Pause, RefreshCw, Trash2, Clock, Mic, StopCircle, Loader2, Check, CaseSensitive } from 'lucide-react';
 import type { Topic } from '@/lib/types';
 import { formatTime } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
-import { summarizeAudio } from '@/ai/flows/summarize-audio-flow';
+import { transcribeAudio } from '@/ai/flows/transcribe-audio-flow';
+import { summarizeText } from '@/ai/flows/summarize-text-flow';
 import { useToast } from '@/hooks/use-toast';
 
 interface AgendaItemProps {
@@ -23,7 +24,8 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
 
   // Audio recording state
   const [isRecording, setIsRecording] = useState(false);
-  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingState, setProcessingState] = useState<'transcribing' | 'summarizing' | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -56,7 +58,7 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
   const handleReset = () => {
     setIsActive(false);
     setSeconds(0);
-    onUpdate({ ...topic, status: 'pending', actualDuration: 0 });
+    onUpdate({ ...topic, status: 'pending', actualDuration: 0, transcription: undefined, summary: undefined });
   };
 
   const handleFinish = () => {
@@ -91,7 +93,6 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
             audioChunksRef.current = []; // Reset for next recording
             
-            // Stop the tracks to turn off the microphone indicator
             mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
 
             if (audioBlob.size === 0) {
@@ -103,25 +104,33 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
               return;
             }
             
-            setIsSummarizing(true);
+            setIsProcessing(true);
             try {
-                // Convert Blob to Data URI
                 const reader = new FileReader();
                 reader.readAsDataURL(audioBlob);
                 reader.onloadend = async () => {
                     const base64Audio = reader.result as string;
                     try {
-                      const result = await summarizeAudio({ audioDataUri: base64Audio, topic: topic.title });
-                      onUpdate({ ...topic, summary: result.summary });
+                      // Step 1: Transcribe
+                      setProcessingState('transcribing');
+                      const transcriptionResult = await transcribeAudio({ audioDataUri: base64Audio });
+                      onUpdate({ ...topic, transcription: transcriptionResult.transcription });
+                      
+                      // Step 2: Summarize
+                      setProcessingState('summarizing');
+                      const summaryResult = await summarizeText({ text: transcriptionResult.transcription, topic: topic.title });
+                      onUpdate({ ...topic, transcription: transcriptionResult.transcription, summary: summaryResult.summary });
+
                     } catch (error) {
-                       console.error("Error summarizing audio:", error);
+                       console.error("Error in AI processing:", error);
                        toast({
                           variant: "destructive",
-                          title: "Error de resumen",
-                          description: "No se pudo generar el resumen. Por favor, inténtalo de nuevo.",
+                          title: `Error al ${processingState === 'transcribing' ? 'transcribir' : 'resumir'}`,
+                          description: "No se pudo procesar la grabación. Por favor, inténtalo de nuevo.",
                        });
                     } finally {
-                       setIsSummarizing(false);
+                       setIsProcessing(false);
+                       setProcessingState(null);
                     }
                 };
             } catch (error) {
@@ -131,14 +140,14 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                     title: "Error de procesamiento",
                     description: "No se pudo procesar el audio grabado.",
                  });
-                setIsSummarizing(false);
+                setIsProcessing(false);
+                setProcessingState(null);
             }
         };
         mediaRecorderRef.current.stop();
         setIsRecording(false);
     }
   };
-
 
   const estimatedSeconds = topic.estimatedDuration * 60;
   const progress = estimatedSeconds > 0 ? Math.min((seconds / estimatedSeconds) * 100, 100) : 0;
@@ -175,20 +184,35 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                 <Progress value={progress} className={isOvertime ? '[&>div]:bg-destructive' : ''} />
             </div>
         </div>
-        { (topic.status === 'active' || topic.summary) && (
-             <div className="border-t pt-4 space-y-2">
-                <div className="flex items-center gap-2">
-                    {isRecording ? (
-                        <Button variant="destructive" onClick={handleStopRecording} disabled={isSummarizing}>
-                           <StopCircle className="mr-2 animate-pulse" /> Detener grabación
-                        </Button>
-                    ) : (
-                        <Button variant="outline" onClick={handleStartRecording} disabled={isRecording || isSummarizing || topic.status !== 'active'}>
-                            <Mic className="mr-2" /> Grabar y resumir
-                        </Button>
-                    )}
-                     {isSummarizing && <Loader2 className="animate-spin" />}
+        { (topic.status === 'active' || topic.transcription || topic.summary) && (
+             <div className="border-t pt-4 space-y-4">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        {isRecording ? (
+                            <Button variant="destructive" onClick={handleStopRecording} disabled={isProcessing}>
+                               <StopCircle className="mr-2 animate-pulse" /> Detener grabación
+                            </Button>
+                        ) : (
+                            <Button variant="outline" onClick={handleStartRecording} disabled={isRecording || isProcessing || topic.status !== 'active'}>
+                                <Mic className="mr-2" /> Grabar y resumir
+                            </Button>
+                        )}
+                    </div>
+                     {isProcessing && (
+                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                            <Loader2 className="animate-spin" />
+                            <span>
+                                {processingState === 'transcribing' ? 'Transcribiendo...' : 'Resumiendo...'}
+                            </span>
+                        </div>
+                     )}
                 </div>
+                {topic.transcription && (
+                    <div className="p-3 bg-muted/50 rounded-md">
+                        <h4 className="font-semibold text-sm flex items-center gap-2"><CaseSensitive /> Transcripción</h4>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{topic.transcription}</p>
+                    </div>
+                )}
                 {topic.summary && (
                     <div className="p-3 bg-muted/50 rounded-md">
                         <h4 className="font-semibold text-sm">Resumen de la IA</h4>

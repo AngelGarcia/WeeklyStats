@@ -12,6 +12,7 @@ export type Topic = {
   estimatedDuration: number; // in minutes
   actualDuration: number; // in seconds
   status: 'pending' | 'active' | 'paused' | 'completed';
+  transcription?: string;
   summary?: string;
 };
 
