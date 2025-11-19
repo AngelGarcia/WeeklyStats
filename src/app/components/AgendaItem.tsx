@@ -180,7 +180,7 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                 <div className="flex items-center gap-2">
                     {isRecording ? (
                         <Button variant="destructive" onClick={handleStopRecording} disabled={isSummarizing}>
-                           <StopCircle className="mr-2" /> Detener grabación
+                           <StopCircle className="mr-2 animate-pulse" /> Detener grabación
                         </Button>
                     ) : (
                         <Button variant="outline" onClick={handleStartRecording} disabled={isRecording || isSummarizing || topic.status !== 'active'}>
