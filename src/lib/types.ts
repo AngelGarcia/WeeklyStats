@@ -30,3 +30,19 @@ export type Meeting = {
 };
 
 export type MeetingStatus = "SETUP" | "IN_PROGRESS" | "SUMMARY";
+
+export type CurrentMeetingState = {
+  status: MeetingStatus;
+  presenterId: string | null;
+  secretaryId: string | null;
+  agenda: Topic[];
+  meetingDate?: Date;
+  meetingTime: string;
+  plannedStartTime: Date | null;
+  actualStartTime: Date | null;
+  lastMeetingSummary: {
+    presenter: Member | undefined;
+    secretary: Member | undefined;
+    duration: number;
+  } | null;
+};

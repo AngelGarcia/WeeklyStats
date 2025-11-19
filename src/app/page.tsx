@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useContext, useEffect } from 'react';
+import React, { useMemo, useContext, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { AppContext } from '@/app/context/AppContext';
-import type { Member, Topic, MeetingStatus } from '@/lib/types';
+import type { Member, Topic } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { SecretarySuggester } from '@/app/components/SecretarySuggester';
 import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User } from 'lucide-react';
@@ -21,52 +21,42 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 export default function MeetingDashboardPage() {
-  const context = useContext(AppContext);
+  const {
+    members,
+    meetings,
+    currentMeeting,
+    updateCurrentMeeting,
+    addTopic,
+    removeTopic,
+    updateTopic,
+    resetCurrentMeeting,
+    startMeeting,
+    endMeeting,
+    isInitialized,
+  } = useContext(AppContext);
 
-  const [meetingStatus, setMeetingStatus] = useState<MeetingStatus>('SETUP');
-  const [presenterId, setPresenterId] = useState<string | null>(null);
-  const [secretaryId, setSecretaryId] = useState<string | null>(null);
-  const [agenda, setAgenda] = useState<Topic[]>([]);
+  const {
+    status: meetingStatus,
+    presenterId,
+    secretaryId,
+    agenda,
+    meetingDate,
+    meetingTime,
+    plannedStartTime,
+    actualStartTime,
+    lastMeetingSummary
+  } = currentMeeting;
+
   const [newTopicTitle, setNewTopicTitle] = useState('');
   const [newTopicDuration, setNewTopicDuration] = useState(5);
   const [newTopicPresenterId, setNewTopicPresenterId] = useState<string | undefined>();
-  const [lastMeetingSummary, setLastMeetingSummary] = useState<{ presenter: Member | undefined, secretary: Member | undefined, duration: number } | null>(null);
-  const [meetingDate, setMeetingDate] = useState<Date | undefined>();
-  const [meetingTime, setMeetingTime] = useState('');
-  const [plannedStartTime, setPlannedStartTime] = useState<Date | null>(null);
-  const [actualStartTime, setActualStartTime] = useState<Date | null>(null);
-
-
-  const { members, meetings, addMeeting, updateMember, isInitialized } = context;
-
+  
   const lastMeeting = useMemo(() => meetings.length > 0 ? meetings[meetings.length - 1] : null, [meetings]);
-
   const suggestedPresenterId = useMemo(() => lastMeeting?.secretaryId, [lastMeeting]);
-
-  useEffect(() => {
-    if (isInitialized) {
-      // This logic runs only on the client after hydration
-      const now = new Date();
-      setMeetingDate(now);
-      setMeetingTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
-    }
-  }, [isInitialized]);
   
   if (!isInitialized) {
     return <div className="flex justify-center items-center h-full"><p>Cargando datos de la aplicación...</p></div>;
   }
-
-  const handleStartMeeting = () => {
-    if (presenterId && secretaryId && agenda.length > 0 && meetingDate) {
-      const [hours, minutes] = meetingTime.split(':').map(Number);
-      const plannedDate = new Date(meetingDate);
-      plannedDate.setHours(hours, minutes, 0, 0);
-      
-      setPlannedStartTime(plannedDate);
-      setActualStartTime(new Date());
-      setMeetingStatus('IN_PROGRESS');
-    }
-  };
 
   const handleAddTopic = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,77 +69,14 @@ export default function MeetingDashboardPage() {
         actualDuration: 0,
         status: 'pending',
       };
-      setAgenda([...agenda, newTopic]);
+      addTopic(newTopic);
       setNewTopicTitle('');
       setNewTopicPresenterId(undefined);
     }
   };
-  
-  const handleRemoveTopic = (id: string) => {
-    setAgenda(agenda.filter(topic => topic.id !== id));
-  };
-
-  const handleUpdateTopic = (updatedTopic: Topic) => {
-    setAgenda(currentAgenda => 
-      currentAgenda.map(topic => 
-        topic.id === updatedTopic.id ? { ...topic, ...updatedTopic } : topic
-      )
-    );
-  };
-
-  const handleEndMeeting = () => {
-    if (!presenterId || !secretaryId || !plannedStartTime || !actualStartTime) return;
-
-    const presenter = members.find(m => m.id === presenterId);
-    const secretary = members.find(m => m.id === secretaryId);
-
-    const totalDuration = agenda.reduce((sum, topic) => sum + topic.actualDuration, 0);
-
-    const newMeeting = {
-      id: crypto.randomUUID(),
-      date: new Date().toISOString(),
-      plannedStartTime: plannedStartTime.toISOString(),
-      actualStartTime: actualStartTime.toISOString(),
-      endTime: new Date().toISOString(),
-      presenterId,
-      secretaryId,
-      agenda,
-    };
-
-    addMeeting(newMeeting);
-
-    if (presenter) {
-      updateMember({ ...presenter, presenterCount: presenter.presenterCount + 1 });
-    }
-    if (secretary) {
-      updateMember({ ...secretary, volunteerCount: secretary.volunteerCount + 1 });
-    }
-
-    const topicCounts = agenda.reduce((acc, topic) => {
-      acc[topic.presenterId] = (acc[topic.presenterId] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    members.forEach(member => {
-      if (topicCounts[member.id]) {
-        updateMember({ ...member, topicPresenterCount: member.topicPresenterCount + topicCounts[member.id] });
-      }
-    });
-
-    setLastMeetingSummary({ presenter, secretary, duration: totalDuration });
-    setMeetingStatus('SUMMARY');
-  };
 
   const handlePlanNext = () => {
-    setAgenda([]);
-    setPresenterId(null);
-    setSecretaryId(null);
-    setLastMeetingSummary(null);
-    setMeetingStatus('SETUP');
-    
-    const now = new Date();
-    setMeetingDate(now);
-    setMeetingTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+    resetCurrentMeeting();
   };
   
   const presenter = members.find(m => m.id === presenterId);
@@ -185,7 +112,7 @@ export default function MeetingDashboardPage() {
                   <Calendar
                     mode="single"
                     selected={meetingDate}
-                    onSelect={(date) => date && setMeetingDate(date)}
+                    onSelect={(date) => date && updateCurrentMeeting({ meetingDate: date })}
                     initialFocus
                   />
                 </PopoverContent>
@@ -193,7 +120,7 @@ export default function MeetingDashboardPage() {
               <Input
                   type="time"
                   value={meetingTime}
-                  onChange={(e) => setMeetingTime(e.target.value)}
+                  onChange={(e) => updateCurrentMeeting({ meetingTime: e.target.value })}
                   className="w-[120px]"
               />
             </div>
@@ -203,7 +130,7 @@ export default function MeetingDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="presenter">Presentador</Label>
-            <Select onValueChange={setPresenterId} defaultValue={suggestedPresenterId || undefined}>
+            <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id })} defaultValue={suggestedPresenterId || undefined} value={presenterId || undefined}>
               <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
               <SelectContent>
                 {members.map(member => (
@@ -217,7 +144,7 @@ export default function MeetingDashboardPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="secretary">Secretario</Label>
-             <Select onValueChange={setSecretaryId} value={secretaryId || undefined} disabled={!presenterId}>
+             <Select onValueChange={(id) => updateCurrentMeeting({ secretaryId: id })} value={secretaryId || undefined} disabled={!presenterId}>
                 <SelectTrigger id="secretary">
                   <SelectValue placeholder={!presenterId ? "Primero elige presentador" : "Seleccionar secretario..."} />
                 </SelectTrigger>
@@ -235,7 +162,7 @@ export default function MeetingDashboardPage() {
         <SecretarySuggester
           members={members}
           presenterId={presenterId}
-          onSelectSecretary={setSecretaryId}
+          onSelectSecretary={(id) => updateCurrentMeeting({ secretaryId: id })}
         />
         <Separator />
         <div>
@@ -282,7 +209,7 @@ export default function MeetingDashboardPage() {
                     <span className="flex-1">{topic.title}</span>
                   </div>
                   <span className="text-muted-foreground text-sm">({topic.estimatedDuration} min)</span>
-                   <Button size="icon" variant="ghost" onClick={() => handleRemoveTopic(topic.id)} className="text-muted-foreground hover:text-destructive">
+                   <Button size="icon" variant="ghost" onClick={() => removeTopic(topic.id)} className="text-muted-foreground hover:text-destructive">
                        <Trash2 className="h-4 w-4" />
                    </Button>
               </div>
@@ -291,7 +218,7 @@ export default function MeetingDashboardPage() {
         </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={handleStartMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto ml-auto">
+        <Button onClick={startMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto ml-auto">
           <Play className="mr-2" /> Iniciar Reunión
         </Button>
       </CardFooter>
@@ -328,14 +255,14 @@ export default function MeetingDashboardPage() {
           <div className="space-y-2">
             {agenda.length === 0 && <p className="text-muted-foreground text-center py-4">Aún no hay temas en la agenda.</p>}
             {agenda.map(topic => (
-              <AgendaItem key={topic.id} topic={topic} onUpdate={handleUpdateTopic} onRemove={handleRemoveTopic} members={members} />
+              <AgendaItem key={topic.id} topic={topic} onUpdate={updateTopic} onRemove={removeTopic} members={members} />
             ))}
           </div>
         </CardContent>
       </Card>
 
       <div className="flex justify-end">
-        <Button variant="destructive" onClick={handleEndMeeting} disabled={agenda.some(t => t.status !== 'completed')}>
+        <Button variant="destructive" onClick={endMeeting} disabled={agenda.some(t => t.status !== 'completed')}>
           <Check className="mr-2" /> Finalizar Reunión
         </Button>
       </div>
