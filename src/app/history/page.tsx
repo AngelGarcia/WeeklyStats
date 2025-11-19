@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic, Calendar, AlertCircle, Sparkles } from 'lucide-react';
+import { Clock, User, Mic, AlertCircle, Sparkles } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -60,8 +60,14 @@ export default function HistoryPage() {
                     <div className="flex justify-between items-start">
                         <div>
                             <CardTitle className="font-headline">{format(parseISO(meeting.date), "d 'de' MMMM, yyyy", { locale: es })}</CardTitle>
-                            <CardDescription className="flex items-center gap-2 pt-1">
-                                <Clock className="w-4 h-4" /> Duración total: {formatTime(totalDuration)}
+                            <CardDescription className="flex flex-col items-start gap-1 pt-1 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-4 h-4" /> 
+                                  <span>
+                                    {format(parseISO(meeting.actualStartTime), 'HH:mm')}h - {format(parseISO(meeting.endTime), 'HH:mm')}h
+                                    ({formatTime(totalDuration)})
+                                  </span>
+                                </div>
                             </CardDescription>
                         </div>
                          <TooltipProvider>
@@ -113,7 +119,14 @@ export default function HistoryPage() {
                            <Accordion type="single" collapsible className="w-full">
                                 {meeting.agenda.map(topic => (
                                     <AccordionItem value={topic.id} key={topic.id}>
-                                        <AccordionTrigger className="text-sm py-2">{topic.title} ({formatTime(topic.actualDuration)})</AccordionTrigger>
+                                        <AccordionTrigger className="text-sm py-2">
+                                          <div className="flex justify-between w-full pr-2">
+                                            <span className="truncate flex-1 text-left">{topic.title}</span>
+                                            <span className="text-muted-foreground ml-2">
+                                               {formatTime(topic.actualDuration)} / {topic.estimatedDuration} min
+                                            </span>
+                                          </div>
+                                        </AccordionTrigger>
                                         <AccordionContent className="text-xs text-muted-foreground space-y-2 pl-4">
                                            {topic.summary ? (
                                                 <div className="p-2 bg-muted/50 rounded-md">

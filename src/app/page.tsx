@@ -42,6 +42,7 @@ export default function MeetingDashboardPage() {
 
   useEffect(() => {
     if (isInitialized) {
+      // This logic runs only on the client after hydration
       const now = new Date();
       setMeetingDate(now);
       setMeetingTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
@@ -100,6 +101,7 @@ export default function MeetingDashboardPage() {
       date: new Date().toISOString(),
       plannedStartTime: plannedStartTime.toISOString(),
       actualStartTime: actualStartTime.toISOString(),
+      endTime: new Date().toISOString(),
       presenterId,
       secretaryId,
       agenda,

@@ -20,6 +20,7 @@ export type Meeting = {
   date: string; // ISO string
   plannedStartTime: string; // ISO string
   actualStartTime: string; // ISO string
+  endTime: string; // ISO string
   presenterId: string;
   secretaryId: string;
   agenda: Topic[];
