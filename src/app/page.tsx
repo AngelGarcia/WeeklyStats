@@ -28,8 +28,8 @@ export default function MeetingDashboardPage() {
   const [newTopicTitle, setNewTopicTitle] = useState('');
   const [newTopicDuration, setNewTopicDuration] = useState(5);
   const [lastMeetingSummary, setLastMeetingSummary] = useState<{ presenter: Member | undefined, secretary: Member | undefined, duration: number } | null>(null);
-  const [meetingDate, setMeetingDate] = useState<Date>(new Date());
-  const [meetingTime, setMeetingTime] = useState(`${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`);
+  const [meetingDate, setMeetingDate] = useState<Date | undefined>();
+  const [meetingTime, setMeetingTime] = useState('');
   const [plannedStartTime, setPlannedStartTime] = useState<Date | null>(null);
   const [actualStartTime, setActualStartTime] = useState<Date | null>(null);
 
@@ -53,7 +53,7 @@ export default function MeetingDashboardPage() {
   }
 
   const handleStartMeeting = () => {
-    if (presenterId && secretaryId && agenda.length > 0) {
+    if (presenterId && secretaryId && agenda.length > 0 && meetingDate) {
       const [hours, minutes] = meetingTime.split(':').map(Number);
       const plannedDate = new Date(meetingDate);
       plannedDate.setHours(hours, minutes, 0, 0);
