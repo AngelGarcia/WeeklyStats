@@ -69,11 +69,18 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
 
   const handleReset = () => {
     if (isRecording) {
-        handleStopRecording(false); // Stop recording without processing
+      handleStopRecording(false);
     }
     setIsActive(false);
-    setSeconds(0);
-    onUpdate({ ...topic, status: 'pending', actualDuration: 0, transcription: undefined, summary: undefined });
+
+    if (topic.status === 'completed') {
+      // "Re-open" the topic, keep the time.
+      onUpdate({ ...topic, status: 'pending' });
+    } else {
+      // "Pure" reset, clear everything.
+      setSeconds(0);
+      onUpdate({ ...topic, status: 'pending', actualDuration: 0, transcription: undefined, summary: undefined });
+    }
   };
 
   const handleFinish = () => {
