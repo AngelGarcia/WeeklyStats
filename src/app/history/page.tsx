@@ -5,9 +5,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic } from 'lucide-react';
+import { Clock, User, Mic, Calendar, AlertCircle } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function HistoryPage() {
   const { meetings, members, isInitialized } = useContext(AppContext);
@@ -19,6 +20,20 @@ export default function HistoryPage() {
   if (!isInitialized) {
     return <div className="flex justify-center items-center h-full"><p>Cargando historial...</p></div>;
   }
+  
+  const getPunctuality = (meeting: typeof meetings[0]) => {
+      const planned = parseISO(meeting.plannedStartTime);
+      const actual = parseISO(meeting.actualStartTime);
+      const diffMinutes = (actual.getTime() - planned.getTime()) / (1000 * 60);
+
+      if (diffMinutes <= 0) {
+          return { text: "Puntual", color: "text-green-600", iconColor: "text-green-500" };
+      }
+      if (diffMinutes <= 5) {
+          return { text: `Retraso de ${Math.round(diffMinutes)} min`, color: "text-yellow-600", iconColor: "text-yellow-500" };
+      }
+      return { text: `Retraso de ${Math.round(diffMinutes)} min`, color: "text-red-600", iconColor: "text-red-500" };
+  };
 
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -36,14 +51,33 @@ export default function HistoryPage() {
               const presenter = members.find(m => m.id === meeting.presenterId);
               const secretary = members.find(m => m.id === meeting.secretaryId);
               const totalDuration = meeting.agenda.reduce((acc, topic) => acc + topic.actualDuration, 0);
+              const punctuality = getPunctuality(meeting);
 
               return (
                 <Card key={meeting.id} className="flex flex-col">
                   <CardHeader>
-                    <CardTitle className="font-headline">{format(parseISO(meeting.date), 'd \'de\' MMMM, yyyy', { locale: es })}</CardTitle>
-                    <CardDescription className="flex items-center gap-2 pt-1">
-                        <Clock className="w-4 h-4" /> Duración total: {formatTime(totalDuration)}
-                    </CardDescription>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle className="font-headline">{format(parseISO(meeting.date), "d 'de' MMMM, yyyy", { locale: es })}</CardTitle>
+                            <CardDescription className="flex items-center gap-2 pt-1">
+                                <Clock className="w-4 h-4" /> Duración total: {formatTime(totalDuration)}
+                            </CardDescription>
+                        </div>
+                         <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <div className={`flex items-center gap-1 text-xs ${punctuality.color}`}>
+                                        <AlertCircle className={`w-4 h-4 ${punctuality.iconColor}`} />
+                                        <span>{punctuality.text}</span>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Planificado: {format(parseISO(meeting.plannedStartTime), 'HH:mm')}h</p>
+                                    <p>Real: {format(parseISO(meeting.actualStartTime), 'HH:mm')}h</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-grow space-y-4">
                     <div className="flex items-center gap-4">

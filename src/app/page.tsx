@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useContext } from 'react';
+import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,8 +11,12 @@ import { AppContext } from '@/app/context/AppContext';
 import type { Member, Topic, MeetingStatus } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { SecretarySuggester } from '@/app/components/SecretarySuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight } from 'lucide-react';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 export default function MeetingDashboardPage() {
   const context = useContext(AppContext);
@@ -24,6 +28,11 @@ export default function MeetingDashboardPage() {
   const [newTopicTitle, setNewTopicTitle] = useState('');
   const [newTopicDuration, setNewTopicDuration] = useState(5);
   const [lastMeetingSummary, setLastMeetingSummary] = useState<{ presenter: Member | undefined, secretary: Member | undefined, duration: number } | null>(null);
+  const [meetingDate, setMeetingDate] = useState<Date>(new Date());
+  const [meetingTime, setMeetingTime] = useState(`${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`);
+  const [plannedStartTime, setPlannedStartTime] = useState<Date | null>(null);
+  const [actualStartTime, setActualStartTime] = useState<Date | null>(null);
+
 
   const { members, meetings, addMeeting, updateMember, isInitialized } = context;
 
@@ -31,17 +40,32 @@ export default function MeetingDashboardPage() {
 
   const suggestedPresenterId = useMemo(() => lastMeeting?.secretaryId, [lastMeeting]);
 
+  useEffect(() => {
+    if (isInitialized) {
+      const now = new Date();
+      setMeetingDate(now);
+      setMeetingTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+    }
+  }, [isInitialized]);
+  
   if (!isInitialized) {
     return <div className="flex justify-center items-center h-full"><p>Cargando datos de la aplicación...</p></div>;
   }
 
   const handleStartMeeting = () => {
-    if (presenterId && secretaryId) {
+    if (presenterId && secretaryId && agenda.length > 0) {
+      const [hours, minutes] = meetingTime.split(':').map(Number);
+      const plannedDate = new Date(meetingDate);
+      plannedDate.setHours(hours, minutes, 0, 0);
+      
+      setPlannedStartTime(plannedDate);
+      setActualStartTime(new Date());
       setMeetingStatus('IN_PROGRESS');
     }
   };
 
-  const handleAddTopic = () => {
+  const handleAddTopic = (e: React.FormEvent) => {
+    e.preventDefault();
     if (newTopicTitle.trim() !== '') {
       const newTopic: Topic = {
         id: crypto.randomUUID(),
@@ -64,7 +88,7 @@ export default function MeetingDashboardPage() {
   };
 
   const handleEndMeeting = () => {
-    if (!presenterId || !secretaryId) return;
+    if (!presenterId || !secretaryId || !plannedStartTime || !actualStartTime) return;
 
     const presenter = members.find(m => m.id === presenterId);
     const secretary = members.find(m => m.id === secretaryId);
@@ -74,6 +98,8 @@ export default function MeetingDashboardPage() {
     const newMeeting = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
+      plannedStartTime: plannedStartTime.toISOString(),
+      actualStartTime: actualStartTime.toISOString(),
       presenterId,
       secretaryId,
       agenda,
@@ -98,6 +124,10 @@ export default function MeetingDashboardPage() {
     setSecretaryId(null);
     setLastMeetingSummary(null);
     setMeetingStatus('SETUP');
+    
+    const now = new Date();
+    setMeetingDate(now);
+    setMeetingTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
   };
   
   const presenter = members.find(m => m.id === presenterId);
@@ -109,9 +139,45 @@ export default function MeetingDashboardPage() {
     <Card className="max-w-3xl mx-auto shadow-lg">
       <CardHeader>
         <CardTitle className="font-headline text-2xl flex items-center gap-2"><Users /> Configurar Reunión</CardTitle>
-        <CardDescription>Selecciona el presentador y secretario para la nueva reunión.</CardDescription>
+        <CardDescription>Define los detalles y la agenda para la nueva reunión.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label>Fecha y Hora</Label>
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !meetingDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {meetingDate ? format(meetingDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={meetingDate}
+                    onSelect={(date) => date && setMeetingDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <Input
+                  type="time"
+                  value={meetingTime}
+                  onChange={(e) => setMeetingTime(e.target.value)}
+                  className="w-[120px]"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="presenter">Presentador</Label>
@@ -149,9 +215,35 @@ export default function MeetingDashboardPage() {
           presenterId={presenterId}
           onSelectSecretary={setSecretaryId}
         />
+        <Separator />
+        <div>
+          <Label className="text-lg font-medium">Agenda</Label>
+           <form onSubmit={handleAddTopic} className="flex items-end gap-2 mt-2">
+            <div className="flex-grow">
+              <Label htmlFor="topic-title" className="sr-only">Nuevo Tema</Label>
+              <Input id="topic-title" placeholder="Título del tema..." value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="topic-duration" className="sr-only">Duración (min)</Label>
+              <Input id="topic-duration" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} className="w-24" />
+            </div>
+            <Button type="submit"><PlusCircle className="mr-2" /> Añadir</Button>
+          </form>
+          <div className="space-y-2 mt-4">
+            {agenda.length === 0 && <p className="text-muted-foreground text-center py-4">Aún no hay temas en la agenda.</p>}
+            {agenda.map(topic => (
+              <div key={topic.id} className="flex items-center gap-2 p-2 rounded-md border">
+                  <span className="flex-1">{topic.title} ({topic.estimatedDuration} min)</span>
+                   <Button size="icon" variant="ghost" onClick={() => handleRemoveTopic(topic.id)} className="text-muted-foreground hover:text-destructive">
+                       <Trash2 className="h-4 w-4" />
+                   </Button>
+              </div>
+            ))}
+          </div>
+        </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={handleStartMeeting} disabled={!presenterId || !secretaryId} className="w-full md:w-auto ml-auto">
+        <Button onClick={handleStartMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto ml-auto">
           <Play className="mr-2" /> Iniciar Reunión
         </Button>
       </CardFooter>
@@ -164,7 +256,14 @@ export default function MeetingDashboardPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle className="font-headline text-2xl">Reunión en Progreso</CardTitle>
-            <CardDescription>Hoy: {format(new Date(), 'PPP')}</CardDescription>
+            <CardDescription>
+                {plannedStartTime && (
+                    <span>
+                        Inicio planificado: {format(plannedStartTime, 'HH:mm')}h. 
+                        Inicio real: {actualStartTime && format(actualStartTime, 'HH:mm')}h.
+                    </span>
+                )}
+            </CardDescription>
           </div>
           <div className="text-right">
              <p><span className="font-semibold">Presentador:</span> {presenter?.name}</p>
@@ -177,19 +276,7 @@ export default function MeetingDashboardPage() {
         <CardHeader>
           <CardTitle className="font-headline flex items-center gap-2"><ClipboardList /> Agenda de la Reunión</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-end gap-2">
-            <div className="flex-grow">
-              <Label htmlFor="topic-title">Nuevo Tema</Label>
-              <Input id="topic-title" placeholder="Título del tema..." value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="topic-duration">Duración (min)</Label>
-              <Input id="topic-duration" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} className="w-24" />
-            </div>
-            <Button onClick={handleAddTopic}><PlusCircle className="mr-2" /> Añadir</Button>
-          </div>
-          <Separator />
+        <CardContent className="space-y-4 pt-6">
           <div className="space-y-2">
             {agenda.length === 0 && <p className="text-muted-foreground text-center py-4">Aún no hay temas en la agenda.</p>}
             {agenda.map(topic => (
@@ -200,7 +287,7 @@ export default function MeetingDashboardPage() {
       </Card>
 
       <div className="flex justify-end">
-        <Button variant="destructive" onClick={handleEndMeeting} disabled={agenda.length === 0}>
+        <Button variant="destructive" onClick={handleEndMeeting} disabled={agenda.some(t => t.status !== 'completed')}>
           <Check className="mr-2" /> Finalizar Reunión
         </Button>
       </div>

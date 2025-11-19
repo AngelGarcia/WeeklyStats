@@ -17,6 +17,8 @@ export type Topic = {
 export type Meeting = {
   id: string;
   date: string; // ISO string
+  plannedStartTime: string; // ISO string
+  actualStartTime: string; // ISO string
   presenterId: string;
   secretaryId: string;
   agenda: Topic[];
