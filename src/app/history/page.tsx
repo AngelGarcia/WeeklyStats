@@ -5,10 +5,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic, Calendar, AlertCircle } from 'lucide-react';
+import { Clock, User, Mic, Calendar, AlertCircle, Sparkles } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export default function HistoryPage() {
   const { meetings, members, isInitialized } = useContext(AppContext);
@@ -107,13 +108,25 @@ export default function HistoryPage() {
                         </div>
                     </div>
                     <div>
-                        <h4 className="font-semibold mb-2">Temas Tratados</h4>
-                        <ScrollArea className="h-32">
-                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                            {meeting.agenda.map(topic => (
-                                <li key={topic.id}>{topic.title} ({formatTime(topic.actualDuration)})</li>
-                            ))}
-                        </ul>
+                        <h4 className="font-semibold mb-2">Temas y Resúmenes</h4>
+                        <ScrollArea className="h-40">
+                           <Accordion type="single" collapsible className="w-full">
+                                {meeting.agenda.map(topic => (
+                                    <AccordionItem value={topic.id} key={topic.id}>
+                                        <AccordionTrigger className="text-sm py-2">{topic.title} ({formatTime(topic.actualDuration)})</AccordionTrigger>
+                                        <AccordionContent className="text-xs text-muted-foreground space-y-2 pl-4">
+                                           {topic.summary ? (
+                                                <div className="p-2 bg-muted/50 rounded-md">
+                                                    <p className="font-semibold flex items-center gap-1"><Sparkles className="w-3 h-3 text-primary" /> Resumen IA</p>
+                                                    <p className="whitespace-pre-wrap">{topic.summary}</p>
+                                                </div>
+                                           ) : (
+                                            <p>No se generó un resumen para este tema.</p>
+                                           )}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
                         </ScrollArea>
                     </div>
                   </CardContent>
