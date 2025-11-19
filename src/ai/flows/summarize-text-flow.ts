@@ -29,21 +29,21 @@ const summarizeTextPrompt = ai.definePrompt({
   name: 'summarizeTextPrompt',
   input: {schema: SummarizeTextInputSchema},
   output: {schema: SummarizeTextOutputSchema},
-  prompt: `You are a meeting assistant. You will be given a transcription of a discussion about a specific meeting topic.
-Your task is to provide a concise summary of the conversation.
+  prompt: `Eres un asistente de reuniones. Se te proporcionará una transcripción en español de un debate sobre un tema específico de la reunión.
+Tu tarea es proporcionar un resumen conciso de la conversación en español.
 
-The topic of discussion is: "{{{topic}}}"
-The transcription is:
+El tema de discusión es: "{{{topic}}}"
+La transcripción es:
 """
 {{{text}}}
 """
 
-Extract the following:
-- Key points and arguments made.
-- Any decisions that were reached.
-- Action items assigned to individuals.
+Extrae lo siguiente:
+- Puntos clave y argumentos expuestos.
+- Cualquier decisión que se haya alcanzado.
+- Puntos de acción asignados a individuos.
 
-Format the output as a clear and brief summary in markdown.`,
+Formatea la salida como un resumen claro y breve en formato markdown.`,
 });
 
 const summarizeTextFlow = ai.defineFlow(
