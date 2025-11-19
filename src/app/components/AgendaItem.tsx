@@ -10,6 +10,18 @@ import { Progress } from '@/components/ui/progress';
 import { transcribeAudio } from '@/ai/flows/transcribe-audio-flow';
 import { summarizeText } from '@/ai/flows/summarize-text-flow';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 interface AgendaItemProps {
   topic: Topic;
@@ -56,12 +68,18 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
   };
 
   const handleReset = () => {
+    if (isRecording) {
+        handleStopRecording(false); // Stop recording without processing
+    }
     setIsActive(false);
     setSeconds(0);
     onUpdate({ ...topic, status: 'pending', actualDuration: 0, transcription: undefined, summary: undefined });
   };
 
   const handleFinish = () => {
+    if (isRecording) {
+        handleStopRecording();
+    }
     setIsActive(false);
     onUpdate({ ...topic, status: 'completed', actualDuration: seconds });
   };
@@ -87,13 +105,18 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
     }
   };
 
-  const handleStopRecording = () => {
+  const handleStopRecording = (processAudio = true) => {
     if (mediaRecorderRef.current) {
         mediaRecorderRef.current.onstop = async () => {
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-            audioChunksRef.current = []; // Reset for next recording
+            audioChunksRef.current = [];
             
             mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+            
+            if (!processAudio) {
+                setIsRecording(false);
+                return;
+            }
 
             if (audioBlob.size === 0) {
               toast({
@@ -101,6 +124,7 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                 title: "Grabación vacía",
                 description: "No se grabó ningún audio. Inténtalo de nuevo.",
               });
+              setIsRecording(false);
               return;
             }
             
@@ -111,12 +135,10 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                 reader.onloadend = async () => {
                     const base64Audio = reader.result as string;
                     try {
-                      // Step 1: Transcribe
                       setProcessingState('transcribing');
                       const transcriptionResult = await transcribeAudio({ audioDataUri: base64Audio });
                       onUpdate({ ...topic, transcription: transcriptionResult.transcription });
                       
-                      // Step 2: Summarize
                       setProcessingState('summarizing');
                       const summaryResult = await summarizeText({ text: transcriptionResult.transcription, topic: topic.title });
                       onUpdate({ ...topic, transcription: transcriptionResult.transcription, summary: summaryResult.summary });
@@ -149,6 +171,7 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
     }
   };
 
+
   const estimatedSeconds = topic.estimatedDuration * 60;
   const progress = estimatedSeconds > 0 ? Math.min((seconds / estimatedSeconds) * 100, 100) : 0;
   const isOvertime = seconds > estimatedSeconds;
@@ -173,12 +196,28 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                 <Button size="icon" variant="ghost" onClick={handleFinish} disabled={topic.status === 'completed'}>
                     <Check />
                 </Button>
-                <Button size="icon" variant="ghost" onClick={handleReset} disabled={topic.status === 'completed'}>
-                <RefreshCw />
+                <Button size="icon" variant="ghost" onClick={handleReset}>
+                    <RefreshCw />
                 </Button>
-                <Button size="icon" variant="ghost" onClick={() => onRemove(topic.id)} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 />
-                </Button>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive">
+                            <Trash2 />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Se eliminará permanentemente el tema <strong>{topic.title}</strong> y sus datos asociados.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onRemove(topic.id)}>Eliminar</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
             <div className="w-full sm:w-32">
                 <Progress value={progress} className={isOvertime ? '[&>div]:bg-destructive' : ''} />
@@ -189,7 +228,7 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         {isRecording ? (
-                            <Button variant="destructive" onClick={handleStopRecording} disabled={isProcessing}>
+                            <Button variant="destructive" onClick={() => handleStopRecording()} disabled={isProcessing}>
                                <StopCircle className="mr-2 animate-pulse" /> Detener grabación
                             </Button>
                         ) : (
@@ -224,3 +263,5 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
     </Card>
   );
 }
+
+    
