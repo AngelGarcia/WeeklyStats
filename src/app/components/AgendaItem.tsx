@@ -8,6 +8,7 @@ import type { Topic } from '@/lib/types';
 import { formatTime } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { summarizeAudio } from '@/ai/flows/summarize-audio-flow';
+import { useToast } from '@/hooks/use-toast';
 
 interface AgendaItemProps {
   topic: Topic;
@@ -18,6 +19,7 @@ interface AgendaItemProps {
 export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
   const [isActive, setIsActive] = useState(false);
   const [seconds, setSeconds] = useState(topic.actualDuration);
+  const { toast } = useToast();
 
   // Audio recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -65,15 +67,21 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
   const handleStartRecording = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
         mediaRecorderRef.current.ondataavailable = (event) => {
-            audioChunksRef.current.push(event.data);
+            if (event.data.size > 0) {
+              audioChunksRef.current.push(event.data);
+            }
         };
         mediaRecorderRef.current.start();
         setIsRecording(true);
     } catch (err) {
         console.error("Error starting recording:", err);
-        // You might want to show a toast notification to the user
+        toast({
+          variant: "destructive",
+          title: "Error de grabación",
+          description: "No se pudo acceder al micrófono. Asegúrate de haber dado permiso.",
+        });
     }
   };
 
@@ -86,6 +94,15 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
             // Stop the tracks to turn off the microphone indicator
             mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
 
+            if (audioBlob.size === 0) {
+              toast({
+                variant: "destructive",
+                title: "Grabación vacía",
+                description: "No se grabó ningún audio. Inténtalo de nuevo.",
+              });
+              return;
+            }
+            
             setIsSummarizing(true);
             try {
                 // Convert Blob to Data URI
@@ -93,13 +110,27 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                 reader.readAsDataURL(audioBlob);
                 reader.onloadend = async () => {
                     const base64Audio = reader.result as string;
-                    const result = await summarizeAudio({ audioDataUri: base64Audio, topic: topic.title });
-                    onUpdate({ ...topic, summary: result.summary });
+                    try {
+                      const result = await summarizeAudio({ audioDataUri: base64Audio, topic: topic.title });
+                      onUpdate({ ...topic, summary: result.summary });
+                    } catch (error) {
+                       console.error("Error summarizing audio:", error);
+                       toast({
+                          variant: "destructive",
+                          title: "Error de resumen",
+                          description: "No se pudo generar el resumen. Por favor, inténtalo de nuevo.",
+                       });
+                    } finally {
+                       setIsSummarizing(false);
+                    }
                 };
             } catch (error) {
-                console.error("Error summarizing audio:", error);
-                // Handle error, maybe show a toast
-            } finally {
+                console.error("Error processing audio:", error);
+                 toast({
+                    variant: "destructive",
+                    title: "Error de procesamiento",
+                    description: "No se pudo procesar el audio grabado.",
+                 });
                 setIsSummarizing(false);
             }
         };
