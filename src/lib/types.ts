@@ -8,6 +8,7 @@ export type Member = {
 
 export type Topic = {
   id: string;
+  presenterId: string;
   title: string;
   estimatedDuration: number; // in minutes
   actualDuration: number; // in seconds

@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RefreshCw, Trash2, Clock, Mic, StopCircle, Loader2, Check, CaseSensitive } from 'lucide-react';
-import type { Topic } from '@/lib/types';
+import { Play, Pause, RefreshCw, Trash2, Clock, Mic, StopCircle, Loader2, Check, CaseSensitive, User } from 'lucide-react';
+import type { Member, Topic } from '@/lib/types';
 import { formatTime } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { transcribeAudio } from '@/ai/flows/transcribe-audio-flow';
@@ -21,15 +21,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 interface AgendaItemProps {
   topic: Topic;
   onUpdate: (topic: Topic) => void;
   onRemove: (id: string) => void;
+  members: Member[];
 }
 
-export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
+export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemProps) {
   const [isActive, setIsActive] = useState(false);
   const [seconds, setSeconds] = useState(topic.actualDuration);
   const { toast } = useToast();
@@ -182,15 +184,27 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
   const estimatedSeconds = topic.estimatedDuration * 60;
   const progress = estimatedSeconds > 0 ? Math.min((seconds / estimatedSeconds) * 100, 100) : 0;
   const isOvertime = seconds > estimatedSeconds;
+  const presenter = members.find(m => m.id === topic.presenterId);
 
   return (
     <Card className="flex flex-col gap-4 p-4 transition-all duration-300 data-[status=completed]:opacity-60" data-status={topic.status}>
         <div className="flex flex-col sm:flex-row items-center gap-4">
             <div className="flex-1 w-full">
                 <h3 className="font-semibold">{topic.title}</h3>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                <Clock className="w-4 h-4" />
-                <span>Estimado: {topic.estimatedDuration} min</span>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                    <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        <span>Estimado: {topic.estimatedDuration} min</span>
+                    </div>
+                     {presenter && (
+                        <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5">
+                                <AvatarImage src={presenter.avatarUrl} alt={presenter.name} />
+                                <AvatarFallback>{presenter.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span>{presenter.name}</span>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -270,5 +284,3 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
     </Card>
   );
 }
-
-    
