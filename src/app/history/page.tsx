@@ -64,7 +64,7 @@ export default function HistoryPage() {
                                 <div className="flex items-center gap-2">
                                   <Clock className="w-4 h-4" /> 
                                   <span>
-                                    {format(parseISO(meeting.actualStartTime), 'HH:mm')}h - {format(parseISO(meeting.endTime), 'HH:mm')}h
+                                    {format(parseISO(meeting.actualStartTime), 'HH:mm')}h - {meeting.endTime ? format(parseISO(meeting.endTime), 'HH:mm')+'h' : ''}
                                     ({formatTime(totalDuration)})
                                   </span>
                                 </div>
