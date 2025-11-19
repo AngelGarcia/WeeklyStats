@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RefreshCw, Trash2, Clock, Mic, StopCircle, Loader2 } from 'lucide-react';
+import { Play, Pause, RefreshCw, Trash2, Clock, Mic, StopCircle, Loader2, Check } from 'lucide-react';
 import type { Topic } from '@/lib/types';
 import { formatTime } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -129,6 +129,9 @@ export function AgendaItem({ topic, onUpdate, onRemove }: AgendaItemProps) {
                 </div>
                 <Button size="icon" variant={isActive ? "outline" : "ghost"} onClick={handleToggle} disabled={topic.status === 'completed'}>
                 {isActive ? <Pause /> : <Play />}
+                </Button>
+                <Button size="icon" variant="ghost" onClick={handleFinish} disabled={topic.status === 'completed'}>
+                    <Check />
                 </Button>
                 <Button size="icon" variant="ghost" onClick={handleReset} disabled={topic.status === 'completed'}>
                 <RefreshCw />
