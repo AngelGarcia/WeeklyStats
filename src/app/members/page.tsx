@@ -41,7 +41,7 @@ export default function MemberManagementPage() {
   const { members, addMember, updateMember, deleteMember, isInitialized } = useContext(AppContext);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
-  const [formState, setFormState] = useState({ name: '', presenterCount: 0, volunteerCount: 0 });
+  const [formState, setFormState] = useState({ name: '', presenterCount: 0, volunteerCount: 0, topicPresenterCount: 0 });
 
   if (!isInitialized) {
     return <div className="flex justify-center items-center h-full"><p>Cargando datos de miembros...</p></div>;
@@ -49,13 +49,13 @@ export default function MemberManagementPage() {
 
   const openDialogForNew = () => {
     setEditingMember(null);
-    setFormState({ name: '', presenterCount: 0, volunteerCount: 0 });
+    setFormState({ name: '', presenterCount: 0, volunteerCount: 0, topicPresenterCount: 0 });
     setIsDialogOpen(true);
   };
 
   const openDialogForEdit = (member: Member) => {
     setEditingMember(member);
-    setFormState({ name: member.name, presenterCount: member.presenterCount, volunteerCount: member.volunteerCount });
+    setFormState({ name: member.name, presenterCount: member.presenterCount, volunteerCount: member.volunteerCount, topicPresenterCount: member.topicPresenterCount });
     setIsDialogOpen(true);
   };
 
@@ -69,7 +69,7 @@ export default function MemberManagementPage() {
     if (editingMember) {
       updateMember({ ...editingMember, ...formState });
     } else {
-      addMember({ name: formState.name, presenterCount: formState.presenterCount, volunteerCount: formState.volunteerCount });
+      addMember({ name: formState.name, presenterCount: formState.presenterCount, volunteerCount: formState.volunteerCount, topicPresenterCount: formState.topicPresenterCount });
     }
     setIsDialogOpen(false);
   };
@@ -88,8 +88,9 @@ export default function MemberManagementPage() {
             <TableHeader>
                 <TableRow>
                 <TableHead>Miembro</TableHead>
-                <TableHead className="text-center">Presentador</TableHead>
+                <TableHead className="text-center">Reuniones Lideradas</TableHead>
                 <TableHead className="text-center">Secretario</TableHead>
+                <TableHead className="text-center">Temas Liderados</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
             </TableHeader>
@@ -107,6 +108,7 @@ export default function MemberManagementPage() {
                     </TableCell>
                     <TableCell className="text-center">{member.presenterCount}</TableCell>
                     <TableCell className="text-center">{member.volunteerCount}</TableCell>
+                    <TableCell className="text-center">{member.topicPresenterCount}</TableCell>
                     <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => openDialogForEdit(member)}>
                         <Edit className="h-4 w-4" />
@@ -153,13 +155,17 @@ export default function MemberManagementPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                <Label htmlFor="presenterCount">Veces de presentador</Label>
+                <Label htmlFor="presenterCount">Reuniones lideradas</Label>
                 <Input id="presenterCount" name="presenterCount" type="number" value={formState.presenterCount} onChange={handleFormChange} />
                 </div>
                 <div className="space-y-2">
                 <Label htmlFor="volunteerCount">Veces de secretario</Label>
                 <Input id="volunteerCount" name="volunteerCount" type="number" value={formState.volunteerCount} onChange={handleFormChange} />
                 </div>
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="topicPresenterCount">Temas Liderados</Label>
+                <Input id="topicPresenterCount" name="topicPresenterCount" type="number" value={formState.topicPresenterCount} onChange={handleFormChange} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>

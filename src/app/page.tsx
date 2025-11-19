@@ -125,6 +125,17 @@ export default function MeetingDashboardPage() {
       updateMember({ ...secretary, volunteerCount: secretary.volunteerCount + 1 });
     }
 
+    const topicCounts = agenda.reduce((acc, topic) => {
+      acc[topic.presenterId] = (acc[topic.presenterId] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    members.forEach(member => {
+      if (topicCounts[member.id]) {
+        updateMember({ ...member, topicPresenterCount: member.topicPresenterCount + topicCounts[member.id] });
+      }
+    });
+
     setLastMeetingSummary({ presenter, secretary, duration: totalDuration });
     setMeetingStatus('SUMMARY');
   };

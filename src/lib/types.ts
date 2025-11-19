@@ -4,6 +4,7 @@ export type Member = {
   avatarUrl: string;
   presenterCount: number;
   volunteerCount: number;
+  topicPresenterCount: number;
 };
 
 export type Topic = {

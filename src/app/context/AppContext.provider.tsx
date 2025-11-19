@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useReducer, useEffect, useState, ReactNode, useMemo } from 'react';
-import type { Member, Meeting } from '@/lib/types';
+import type { Member, Meeting, Topic } from '@/lib/types';
 import { initialMemberNames } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -24,6 +24,7 @@ const generateInitialMembers = (): Member[] => {
     avatarUrl: PlaceHolderImages[index % PlaceHolderImages.length].imageUrl,
     presenterCount: 0,
     volunteerCount: 0,
+    topicPresenterCount: 0,
   }));
 };
 
@@ -82,7 +83,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const storedState = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedState) {
-        dispatch({ type: 'INITIALIZE_STATE', payload: JSON.parse(storedState) });
+        // Ensure new fields are present
+        const parsedState = JSON.parse(storedState);
+        const migratedMembers = parsedState.members.map((member: Member) => ({
+          ...member,
+          topicPresenterCount: member.topicPresenterCount || 0,
+        }));
+        dispatch({ type: 'INITIALIZE_STATE', payload: { ...parsedState, members: migratedMembers } });
       } else {
         // If no stored state, generate initial members
         dispatch({ type: 'INITIALIZE_STATE', payload: { members: generateInitialMembers(), meetings: [] } });
