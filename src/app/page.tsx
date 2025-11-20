@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useMemo, useContext, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { AppContext } from '@/app/context/AppContext';
-import type { Member, Topic } from '@/lib/types';
+import { useAppContext } from '@/app/context/AppContext';
+import type { Topic } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { SecretarySuggester } from '@/app/components/SecretarySuggester';
 import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User } from 'lucide-react';
@@ -33,7 +33,7 @@ export default function MeetingDashboardPage() {
     startMeeting,
     endMeeting,
     isInitialized,
-  } = useContext(AppContext);
+  } = useAppContext();
 
   const {
     status: meetingStatus,
@@ -61,13 +61,10 @@ export default function MeetingDashboardPage() {
   const handleAddTopic = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTopicTitle.trim() !== '' && newTopicPresenterId) {
-      const newTopic: Topic = {
-        id: crypto.randomUUID(),
+      const newTopic: Omit<Topic, 'id' | 'actualDuration' | 'status'> = {
         title: newTopicTitle,
         estimatedDuration: newTopicDuration,
         presenterId: newTopicPresenterId,
-        actualDuration: 0,
-        status: 'pending',
       };
       addTopic(newTopic);
       setNewTopicTitle('');

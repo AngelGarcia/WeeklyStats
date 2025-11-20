@@ -1,6 +1,6 @@
 "use client";
-import React, { useContext, useMemo } from 'react';
-import { AppContext } from '@/app/context/AppContext';
+import React, { useMemo } from 'react';
+import { useAppContext } from '@/app/context/AppContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
@@ -12,9 +12,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export default function HistoryPage() {
-  const { meetings, members, isInitialized } = useContext(AppContext);
+  const { meetings, members, isInitialized } = useAppContext();
 
   const sortedMeetings = useMemo(() => {
+    if (!meetings) return [];
     return [...meetings].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }, [meetings]);
 

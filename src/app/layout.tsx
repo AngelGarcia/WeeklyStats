@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AppProvider } from '@/app/context/AppContext';
 import { AppLayout } from '@/app/components/AppLayout';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'ReunionStats',
@@ -22,11 +23,13 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased" suppressHydrationWarning>
-        <AppProvider>
-          <AppLayout>
-            {children}
-          </AppLayout>
-        </AppProvider>
+        <FirebaseClientProvider>
+          <AppProvider>
+            <AppLayout>
+              {children}
+            </AppLayout>
+          </AppProvider>
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>

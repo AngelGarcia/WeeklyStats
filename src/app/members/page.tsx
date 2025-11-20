@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useContext, useState } from 'react';
-import { AppContext } from '@/app/context/AppContext';
+import React, { useState } from 'react';
+import { useAppContext } from '@/app/context/AppContext';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -38,7 +38,7 @@ import type { Member } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function MemberManagementPage() {
-  const { members, addMember, updateMember, deleteMember, isInitialized } = useContext(AppContext);
+  const { members, addMember, updateMember, deleteMember, isInitialized } = useAppContext();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [formState, setFormState] = useState({ name: '', presenterCount: 0, volunteerCount: 0, topicPresenterCount: 0 });
@@ -69,7 +69,7 @@ export default function MemberManagementPage() {
     if (editingMember) {
       updateMember({ ...editingMember, ...formState });
     } else {
-      addMember({ name: formState.name, presenterCount: formState.presenterCount, volunteerCount: formState.volunteerCount, topicPresenterCount: formState.topicPresenterCount });
+      addMember({ name: formState.name });
     }
     setIsDialogOpen(false);
   };
