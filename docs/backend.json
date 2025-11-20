@@ -1,0 +1,185 @@
+{
+  "entities": {
+    "Member": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Member",
+      "type": "object",
+      "description": "Represents a team member.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Member entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The member's name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The member's email address.",
+          "format": "email"
+        },
+        "presentationCount": {
+          "type": "number",
+          "description": "The number of times the member has been a presenter."
+        },
+        "volunteerCount": {
+          "type": "number",
+          "description": "The number of times the member has volunteered."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Meeting": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Meeting",
+      "type": "object",
+      "description": "Represents a weekly meeting.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Meeting entity."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date and time of the meeting.",
+          "format": "date-time"
+        },
+        "presenterId": {
+          "type": "string",
+          "description": "Reference to the Presenter. (Relationship: Meeting 1:1 Member)"
+        },
+        "secretaryId": {
+          "type": "string",
+          "description": "Reference to the Secretary. (Relationship: Meeting 1:1 Member)"
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "presenterId",
+        "secretaryId"
+      ]
+    },
+    "AgendaItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AgendaItem",
+      "type": "object",
+      "description": "Represents an item on the meeting agenda.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AgendaItem entity."
+        },
+        "meetingId": {
+          "type": "string",
+          "description": "Reference to the Meeting. (Relationship: Meeting 1:N AgendaItem)"
+        },
+        "topic": {
+          "type": "string",
+          "description": "The topic of the agenda item."
+        },
+        "estimatedTime": {
+          "type": "number",
+          "description": "The estimated time for the agenda item in minutes."
+        },
+        "actualTime": {
+          "type": "number",
+          "description": "The actual time spent on the agenda item in minutes."
+        },
+        "order": {
+          "type": "number",
+          "description": "The order of the agenda item in the meeting."
+        }
+      },
+      "required": [
+        "id",
+        "meetingId",
+        "topic",
+        "estimatedTime"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/members/{memberId}",
+        "definition": {
+          "entityName": "Member",
+          "schema": {
+            "$ref": "#/backend/entities/Member"
+          },
+          "description": "Stores individual member information.",
+          "params": [
+            {
+              "name": "memberId",
+              "description": "The unique identifier of the member."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/meetings/{meetingId}",
+        "definition": {
+          "entityName": "Meeting",
+          "schema": {
+            "$ref": "#/backend/entities/Meeting"
+          },
+          "description": "Stores information about each meeting.",
+          "params": [
+            {
+              "name": "meetingId",
+              "description": "The unique identifier of the meeting."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/meetings/{meetingId}/agendaItems/{agendaItemId}",
+        "definition": {
+          "entityName": "AgendaItem",
+          "schema": {
+            "$ref": "#/backend/entities/AgendaItem"
+          },
+          "description": "Stores agenda items for each meeting. Includes denormalized 'members' map for authorization independence.",
+          "params": [
+            {
+              "name": "meetingId",
+              "description": "The unique identifier of the meeting."
+            },
+            {
+              "name": "agendaItemId",
+              "description": "The unique identifier of the agenda item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/Member"
+          },
+          "description": "Documents in this collection grant admin rights to the specified user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to manage meeting statistics and agendas efficiently. Each entity (Members, Meetings, and AgendaItems) has its own collection. The `meetings/{meetingId}/agendaItems/{agendaItemId}` structure enables easy access to agenda items for a specific meeting. To ensure authorization independence, particularly for agenda items, the `members` map from a hypothetical `team` document is denormalized into each `agendaItem` document. This eliminates the need for `get()` calls in security rules to verify membership and allows atomic operations (transactions/batches). The absence of a dedicated team collection is assumed; if it exists, this design should be adjusted to reference it. This structure also supports efficient list operations. Segregating agenda items into a subcollection supports QAPs as it allows listing of only the agenda items that belong to a specific meeting without filtering.\n\nThe structure is designed to make security rules straightforward to implement. Path-based ownership is used for `users/{userId}/`, while a membership map with a role of admin is used in `roles_admin/{userId}`. The `meetings` collection uses the subcollection `agendaItems` to link the Meeting and AgendaItem entities, indicating that this relationship should be secured by membership in the team. The proposed structure balances simplicity and scalability, making it easy to manage and secure the application's data."
+  }
+}

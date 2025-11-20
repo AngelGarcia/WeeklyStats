@@ -1,0 +1,116 @@
+/**
+ * Core Philosophy: This ruleset implements a role-based access control model with two primary levels: general authenticated users and administrators. The core principle is to allow widespread collaboration on meeting agendas while protecting foundational data (like the list of members and meeting schedules) from unauthorized changes. Administrators, identified by a document in the `/roles_admin` collection, have full control over core data.
+ *
+ * Data Structure: The data is organized into three top-level collections: `/members`, `/meetings`, and `/roles_admin`. Meeting agendas are stored in a nested subcollection (`/meetings/{meetingId}/agendaItems/{agendaItemId}`), which allows for efficient querying and clear separation of concerns.
+ *
+ * Key Security Decisions:
+ * - Admin Control: A user is considered an administrator if a document with their UID exists in the `/roles_admin` collection. This provides a clear and efficient mechanism for privilege management. Admins are the only users who can manage the `/members` and `/meetings` collections.
+ * - Collaborative Agenda: Any authenticated user can read all meeting and member data. Crucially, any authenticated user can also create, update, and delete items in any meeting's agenda. This aligns with the need for open collaboration in preparing for a meeting.
+ * - Secure by Default: The `/roles_admin` collection is locked down to prevent any client-side modification, ensuring that admin privileges cannot be escalated from the app. It must be managed from a trusted environment like the Firebase Console or a backend server.
+ *
+ * Denormalization for Authorization: The ruleset relies on an explicit `/roles_admin` collection to grant permissions, which avoids complex lookups. This pattern is highly performant as the `isAdmin()` check uses a simple `exists()` call. No denormalization is needed on other documents because the access model is broad (any signed-in user or an admin).
+ *
+ * Structural Segregation: The use of a subcollection for `/meetings/{meetingId}/agendaItems` is a key structural choice. It naturally scopes agenda items to a specific meeting, making security rules simpler and list operations on agendas highly performant and secure.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // Helper Functions
+    // ------------------------------------------------------------------------
+
+    /**
+     * Returns true if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Returns true if the user is an administrator.
+     * Admin status is granted if a document with the user's UID exists in the /roles_admin collection.
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * Validates that the agenda item's internal meetingId is correctly set during creation.
+     */
+    function hasValidAgendaItemData(meetingId) {
+        return request.resource.data.meetingId == meetingId;
+    }
+
+    /**
+     * Validates that the agenda item's meetingId reference cannot be changed after creation.
+     */
+    function isMeetingIdImmutable() {
+        return request.resource.data.meetingId == resource.data.meetingId;
+    }
+
+    // ------------------------------------------------------------------------
+    // Collection Rules
+    // ------------------------------------------------------------------------
+
+    /**
+     * @description Manages team member information. Readable by any signed-in user, but only manageable by administrators.
+     * @path /members/{memberId}
+     * @allow (get) An authenticated user reads a member's profile. `auth: { uid: 'user_abc' }`
+     * @deny (create) A non-admin user tries to add a new member. `auth: { uid: 'user_abc' }`
+     * @principle Enforces admin-only control over core application data.
+     */
+    match /members/{memberId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Manages meeting information. Meetings are public to all signed-in users, but only admins can schedule or change them. Contains a subcollection for collaborative agenda items.
+     * @path /meetings/{meetingId}
+     * @allow (get) Any authenticated user can view the details of a meeting. `auth: { uid: 'user_def' }`
+     * @deny (update) A regular user attempts to change the meeting date. `auth: { uid: 'user_def' }`
+     * @principle Protects primary records with admin-only write access while allowing broad read access for collaboration.
+     */
+    match /meetings/{meetingId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+
+      /**
+       * @description Manages the agenda for a specific meeting. Any authenticated user can add, edit, or remove agenda items to facilitate collaboration.
+       * @path /meetings/{meetingId}/agendaItems/{agendaItemId}
+       * @allow (create) Any authenticated user adds a new topic to the agenda. `auth: { uid: 'user_xyz' }`
+       * @deny (create) An unauthenticated user tries to add an agenda item. `auth: null`
+       * @principle Enables open collaboration for authenticated users on a shared resource, while ensuring relational integrity.
+       */
+      match /agendaItems/{agendaItemId} {
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && hasValidAgendaItemData(meetingId);
+        allow update: if isSignedIn() && resource != null && isMeetingIdImmutable();
+        allow delete: if isSignedIn() && resource != null;
+      }
+    }
+
+    /**
+     * @description Grants admin privileges. Documents in this collection should be managed via the Firebase Console or a trusted backend, not by clients.
+     * @path /roles_admin/{userId}
+     * @allow (get) An admin checks if another user is also an admin. `auth: { uid: 'admin_user_1' }`
+     * @deny (create) Any user, including an admin, tries to grant admin rights via the client.
+     * @principle Prevents client-side privilege escalation by making the roles collection read-only.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
