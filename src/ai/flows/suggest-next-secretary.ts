@@ -40,7 +40,7 @@ const suggestNextSecretaryPrompt = ai.definePrompt({
   output: {schema: SuggestNextSecretaryOutputSchema},
   prompt: `You are a meeting facilitator. Given the following list of team members and their past presenter and volunteer counts, suggest the next secretary for the meeting, ensuring fairness.
 
-Members: {{{JSON.stringify members}}}
+Members: {{{members}}}
 
 Consider the following factors:
 - Prioritize members who have the fewest presenter and volunteer counts.
