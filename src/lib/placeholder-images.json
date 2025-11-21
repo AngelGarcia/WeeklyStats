@@ -47,6 +47,66 @@
       "description": "Avatar for a team member",
       "imageUrl": "https://robohash.org/firebase.png?set=set4",
       "imageHint": "cat avatar"
+    },
+    {
+      "id": "9",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/female1.png?set=set1",
+      "imageHint": "robot avatar"
+    },
+    {
+      "id": "10",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/male1.png?set=set1",
+      "imageHint": "robot avatar"
+    },
+    {
+      "id": "11",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/female2.png?set=set2",
+      "imageHint": "monster avatar"
+    },
+    {
+      "id": "12",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/male2.png?set=set2",
+      "imageHint": "monster avatar"
+    },
+    {
+      "id": "13",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/female3.png?set=set4",
+      "imageHint": "cat avatar"
+    },
+    {
+      "id": "14",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/male3.png?set=set4",
+      "imageHint": "cat avatar"
+    },
+    {
+      "id": "15",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/user1.png?set=set1",
+      "imageHint": "robot avatar"
+    },
+    {
+      "id": "16",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/user2.png?set=set2",
+      "imageHint": "monster avatar"
+    },
+    {
+      "id": "17",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/user3.png?set=set4",
+      "imageHint": "cat avatar"
+    },
+    {
+      "id": "18",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/user4.png?set=set1",
+      "imageHint": "robot avatar"
     }
   ]
 }
