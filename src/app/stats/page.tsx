@@ -183,10 +183,10 @@ export default function StatsPage() {
                                     <YAxis />
                                     <Tooltip content={<ChartTooltipContent />} />
                                     <Legend content={<ChartLegendContent />} />
-                                    <Bar dataKey="physicalAttendance" fill="var(--color-physicalAttendance)" radius={4} />
-                                    <Bar dataKey="onlineAttendance" fill="var(--color-onlineAttendance)" radius={4} />
-                                    <Bar dataKey="presenterCount" fill="var(--color-presenterCount)" radius={4} />
-                                    <Bar dataKey="volunteerCount" fill="var(--color-volunteerCount)" radius={4} />
+                                    <Bar dataKey="physicalAttendance" stackId="attendance" fill="var(--color-physicalAttendance)" radius={4} />
+                                    <Bar dataKey="onlineAttendance" stackId="attendance" fill="var(--color-onlineAttendance)" radius={4} />
+                                    <Bar dataKey="presenterCount" stackId="participation" fill="var(--color-presenterCount)" radius={4} />
+                                    <Bar dataKey="volunteerCount" stackId="participation" fill="var(--color-volunteerCount)" radius={4} />
                                     <Bar dataKey="topicPresenterCount" fill="var(--color-topicPresenterCount)" radius={4} />
                                 </BarChart>
                             </ResponsiveContainer>
