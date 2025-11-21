@@ -52,6 +52,10 @@ export default function MeetingDashboardPage() {
 
   const suggestedPresenterId = useMemo(() => lastCompletedMeeting?.secretaryId, [lastCompletedMeeting]);
 
+  const sortedMembers = useMemo(() => {
+    return [...members].sort((a, b) => a.name.localeCompare(b.name));
+  }, [members]);
+
   if (!isInitialized || isLoading || !currentMeeting) {
     return <div className="flex justify-center items-center h-full"><p>Cargando datos de la reunión...</p></div>;
   }
@@ -105,7 +109,9 @@ export default function MeetingDashboardPage() {
   const presenter = members.find(m => m.id === presenterId);
   const secretary = members.find(m => m.id === secretaryId);
   
-  const availableMembers = members.filter(m => m.id !== presenterId);
+  const availableMembers = useMemo(() => {
+    return sortedMembers.filter(m => m.id !== presenterId);
+  }, [sortedMembers, presenterId]);
 
   const SaveStatusIndicator = () => {
     switch (saveStatus) {
@@ -169,7 +175,7 @@ export default function MeetingDashboardPage() {
             <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id })} defaultValue={suggestedPresenterId || undefined} value={presenterId || undefined}>
               <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
               <SelectContent>
-                {members.map(member => (
+                {sortedMembers.map(member => (
                   <SelectItem key={member.id} value={member.id}>
                     {member.name} {member.id === suggestedPresenterId && '(Sugerido)'}
                   </SelectItem>
@@ -215,7 +221,7 @@ export default function MeetingDashboardPage() {
                         <SelectValue placeholder="Encargado..." />
                     </SelectTrigger>
                     <SelectContent>
-                        {members.map(member => (
+                        {sortedMembers.map(member => (
                             <SelectItem key={member.id} value={member.id}>
                                 {member.name}
                             </SelectItem>
