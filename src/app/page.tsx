@@ -10,8 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { useAppContext } from '@/app/context/AppContext';
 import type { Topic, Member, AttendanceRecord, SurveyResult } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
-import { SecretarySuggester } from '@/app/components/SecretarySuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building, Star, Shuffle } from 'lucide-react';
+import { RoleSuggester } from '@/app/components/RoleSuggester';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building, Star } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -69,7 +69,7 @@ export default function MeetingDashboardPage() {
     return [...members].sort((a, b) => a.name.localeCompare(b.name));
   }, [members]);
 
-  const availableMembers = useMemo(() => {
+  const availableMembersForSecretary = useMemo(() => {
     if (!currentMeeting?.presenterId || !sortedMembers) return [];
     return sortedMembers.filter(m => m.id !== currentMeeting.presenterId);
   }, [sortedMembers, currentMeeting?.presenterId]);
@@ -171,8 +171,7 @@ export default function MeetingDashboardPage() {
         <CardDescription>Define los detalles, la agenda y la asistencia para la nueva reunión.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
+        <div className="space-y-2">
             <Label>Fecha y Hora</Label>
             <div className="flex gap-2">
               <Popover>
@@ -205,46 +204,58 @@ export default function MeetingDashboardPage() {
               />
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="presenter">Presentador</Label>
-            <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id })} value={presenterId || undefined}>
-              <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
-              <SelectContent>
-                {sortedMembers.map(member => (
-                  <SelectItem key={member.id} value={member.id}>
-                    {member.name} {member.id === suggestedPresenterId && '(Sugerido)'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">El presentador de esta semana suele ser el secretario de la anterior.</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="secretary">Secretario</Label>
-             <Select onValueChange={(id) => updateCurrentMeeting({ secretaryId: id })} value={secretaryId || undefined} disabled={!presenterId}>
-                <SelectTrigger id="secretary">
-                  <SelectValue placeholder={!presenterId ? "Primero elige presentador" : "Seleccionar secretario..."} />
-                </SelectTrigger>
-                <SelectContent>
-                    {availableMembers.map(member => (
-                        <SelectItem key={member.id} value={member.id}>
-                            {member.name}
-                        </SelectItem>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+            <div className="space-y-2">
+              <Label htmlFor="presenter">Presentador</Label>
+               <div className="flex gap-2">
+                <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })} value={presenterId || ''}>
+                  <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
+                  <SelectContent>
+                    {sortedMembers.map(member => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name} {member.id === suggestedPresenterId && '(Sugerido)'}
+                      </SelectItem>
                     ))}
-                </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>
-          </div>
+                  </SelectContent>
+                </Select>
+                <RoleSuggester
+                  role="presenter"
+                  members={members}
+                  attendance={attendance}
+                  onSelect={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">El presentador de esta semana suele ser el secretario de la anterior.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="secretary">Secretario</Label>
+               <div className="flex gap-2">
+                <Select onValueChange={(id) => updateCurrentMeeting({ secretaryId: id })} value={secretaryId || ''} disabled={!presenterId}>
+                    <SelectTrigger id="secretary">
+                      <SelectValue placeholder={!presenterId ? "Primero elige presentador" : "Seleccionar secretario..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableMembersForSecretary.map(member => (
+                            <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                 <RoleSuggester
+                    role="secretary"
+                    members={members}
+                    attendance={attendance}
+                    excludeId={presenterId}
+                    onSelect={(id) => updateCurrentMeeting({ secretaryId: id })}
+                    disabled={!presenterId}
+                  />
+              </div>
+              <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>
+            </div>
         </div>
-        <SecretarySuggester
-          members={members}
-          presenterId={presenterId}
-          attendance={attendance}
-          onSelectSecretary={(id) => updateCurrentMeeting({ secretaryId: id })}
-        />
+        
         <Separator />
         
         {/* Agenda Section */}
