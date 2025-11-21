@@ -39,6 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type SortKey = keyof Omit<Member, 'id' | 'avatarUrl'>;
 type SortDirection = 'asc' | 'desc';
@@ -92,7 +93,7 @@ export default function MemberManagementPage() {
 
   const openDialogForEdit = (member: Member) => {
     setEditingMember(member);
-    setFormState({ name: member.name, presenterCount: member.presenterCount, volunteerCount: member.volunteerCount, topicPresenterCount: member.topicPresenterCount, avatarUrl: member.avatarUrl });
+    setFormState({ name: member.name, presenterCount: member.presenterCount, volunteerCount: member.volunteerCount, topicPresenterCount: member.topicPresenterCount || 0, avatarUrl: member.avatarUrl });
     setIsDialogOpen(true);
   };
 
@@ -161,7 +162,7 @@ export default function MemberManagementPage() {
                     </TableCell>
                     <TableCell className="text-center">{member.presenterCount}</TableCell>
                     <TableCell className="text-center">{member.volunteerCount}</TableCell>
-                    <TableCell className="text-center">{member.topicPresenterCount}</TableCell>
+                    <TableCell className="text-center">{member.topicPresenterCount || 0}</TableCell>
                     <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => openDialogForEdit(member)}>
                         <Edit className="h-4 w-4" />
@@ -209,13 +210,15 @@ export default function MemberManagementPage() {
 
             <div className="space-y-2">
                 <Label>Avatar</Label>
-                <div className="grid grid-cols-5 gap-2">
-                    {PlaceHolderImages.map(image => (
-                        <button type="button" key={image.id} onClick={() => handleAvatarChange(image.imageUrl)} className={cn("rounded-full overflow-hidden border-2 transition-all", formState.avatarUrl === image.imageUrl ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
-                           <Image src={image.imageUrl} alt={image.description} width={64} height={64} className="h-16 w-16 object-cover" data-ai-hint={image.imageHint} />
-                        </button>
-                    ))}
-                </div>
+                <ScrollArea className="h-40 w-full">
+                  <div className="grid grid-cols-5 gap-2 pr-4">
+                      {PlaceHolderImages.map(image => (
+                          <button type="button" key={image.id} onClick={() => handleAvatarChange(image.imageUrl)} className={cn("rounded-full overflow-hidden border-2 transition-all", formState.avatarUrl === image.imageUrl ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
+                            <Image src={image.imageUrl} alt={image.description} width={64} height={64} className="h-16 w-16 object-cover" data-ai-hint={image.imageHint} />
+                          </button>
+                      ))}
+                  </div>
+                </ScrollArea>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
