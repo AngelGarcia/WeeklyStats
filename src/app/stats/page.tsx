@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 import { useAppContext } from '@/app/context/AppContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ChartConfig } from '@/components/ui/chart';
@@ -13,6 +13,15 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, Presentation, UserCheck, BookOpen, User } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 
 const attendanceChartConfig = {
   physical: {
@@ -77,8 +86,20 @@ export default function StatsPage() {
   }, [meetings, surveyCriteria]);
 
   const memberStatsData = useMemo(() => {
-    if (!members || !meetings) return [];
+    if (!members || !meetings) {
+        return {
+            stats: [],
+            maxValues: {
+                totalAttendance: 0,
+                presenterCount: 0,
+                volunteerCount: 0,
+                topicPresenterCount: 0,
+            }
+        };
+    }
     
+    const sortedMembers = [...members].sort((a, b) => a.name.localeCompare(b.name));
+
     const maxValues = {
         totalAttendance: 0,
         presenterCount: 0,
@@ -86,7 +107,7 @@ export default function StatsPage() {
         topicPresenterCount: 0,
     };
 
-    const stats = members.map(member => {
+    const stats = sortedMembers.map(member => {
         const attendanceStats = { physical: 0, online: 0 };
 
         meetings.forEach(meeting => {
@@ -152,11 +173,11 @@ export default function StatsPage() {
                                     <CartesianGrid vertical={false} />
                                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
                                     <YAxis unit="%" />
-                                    <Tooltip
+                                    <ChartTooltip
                                         cursor={false}
                                         content={<ChartTooltipContent indicator="dot" />}
                                     />
-                                    <Legend content={<ChartLegendContent />} />
+                                    <ChartLegend content={<ChartLegendContent />} />
                                     <Line dataKey="efficiency" type="monotone" strokeWidth={2} stroke="var(--color-efficiency)" />
                                 </LineChart>
                             </ResponsiveContainer>
@@ -176,8 +197,8 @@ export default function StatsPage() {
                                     <CartesianGrid vertical={false} />
                                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
                                     <YAxis />
-                                    <Tooltip content={<ChartTooltipContent />} />
-                                    <Legend content={<ChartLegendContent />} />
+                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                    <ChartLegend content={<ChartLegendContent />} />
                                     <Bar dataKey="physical" stackId="a" fill="var(--color-physical)" radius={[0, 0, 4, 4]} />
                                     <Bar dataKey="online" stackId="a" fill="var(--color-online)" radius={[4, 4, 0, 0]} />
                                 </BarChart>
@@ -243,6 +264,49 @@ export default function StatsPage() {
                                 </AccordionItem>
                             ))}
                         </Accordion>
+                    </CardContent>
+                </Card>
+
+                 <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Datos de Participación</CardTitle>
+                        <CardDescription>Resumen numérico de la participación de cada miembro.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Miembro</TableHead>
+                                    <TableHead className="text-center">Asist. Total</TableHead>
+                                    <TableHead className="text-center">Asist. Física</TableHead>
+                                    <TableHead className="text-center">Asist. Online</TableHead>
+                                    <TableHead className="text-center">Presentador</TableHead>
+                                    <TableHead className="text-center">Secretario</TableHead>
+                                    <TableHead className="text-center">Temas Prop.</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {memberStatsData.stats.map(member => (
+                                    <TableRow key={member.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={member.avatarUrl} alt={member.name} />
+                                                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium">{member.name}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center font-bold">{member.totalAttendance}</TableCell>
+                                        <TableCell className="text-center">{member.physicalAttendance}</TableCell>
+                                        <TableCell className="text-center">{member.onlineAttendance}</TableCell>
+                                        <TableCell className="text-center">{member.presenterCount}</TableCell>
+                                        <TableCell className="text-center">{member.volunteerCount}</TableCell>
+                                        <TableCell className="text-center">{member.topicPresenterCount}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </div>
