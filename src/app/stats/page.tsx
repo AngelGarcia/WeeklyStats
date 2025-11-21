@@ -28,9 +28,17 @@ const efficiencyChartConfig = {
   },
 } satisfies ChartConfig;
 
+const memberStatsChartConfig = {
+  physicalAttendance: { label: "Asistencia Física", color: "hsl(var(--chart-1))" },
+  onlineAttendance: { label: "Asistencia Online", color: "hsl(var(--chart-2))" },
+  presenterCount: { label: "Presentador de Reunión", color: "hsl(var(--chart-3))" },
+  volunteerCount: { label: "Secretario", color: "hsl(var(--chart-4))" },
+  topicPresenterCount: { label: "Presentador de Tema", color: "hsl(var(--chart-5))" },
+} satisfies ChartConfig;
+
 
 export default function StatsPage() {
-  const { meetings, surveyCriteria, isInitialized } = useAppContext();
+  const { meetings, members, surveyCriteria, isInitialized } = useAppContext();
 
   const calculateEfficiencyScore = (surveyResults: any[] | undefined) => {
     if (!surveyResults || !surveyCriteria || surveyCriteria.length === 0) return 0;
@@ -51,7 +59,7 @@ export default function StatsPage() {
     return Math.round(finalScore);
   };
 
-  const chartData = useMemo(() => {
+  const meetingsChartData = useMemo(() => {
     if (!meetings) return [];
     return meetings
       .filter(m => m.status === 'COMPLETED')
@@ -72,6 +80,35 @@ export default function StatsPage() {
       });
   }, [meetings, surveyCriteria]);
 
+  const memberStatsData = useMemo(() => {
+    if (!members || !meetings) return [];
+    
+    return members.map(member => {
+        const attendanceStats = { physical: 0, online: 0 };
+
+        meetings.forEach(meeting => {
+            const record = meeting.attendance?.find(a => a.memberId === member.id && a.status === 'present');
+            if (record) {
+                if (record.location === 'physical') {
+                    attendanceStats.physical += 1;
+                } else if (record.location === 'online') {
+                    attendanceStats.online += 1;
+                }
+            }
+        });
+
+        return {
+            name: member.name.split(' ')[0],
+            physicalAttendance: attendanceStats.physical,
+            onlineAttendance: attendanceStats.online,
+            presenterCount: member.presenterCount || 0,
+            volunteerCount: member.volunteerCount || 0,
+            topicPresenterCount: member.topicPresenterCount || 0,
+        };
+    });
+}, [members, meetings]);
+
+
   if (!isInitialized) {
     return <div className="flex justify-center items-center h-full"><p>Cargando estadísticas...</p></div>;
   }
@@ -79,7 +116,7 @@ export default function StatsPage() {
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
         <h1 className="text-3xl font-headline font-bold mb-6">Estadísticas de Reuniones</h1>
-        {chartData.length === 0 ? (
+        {meetingsChartData.length === 0 ? (
              <Card>
                 <CardContent className="pt-6 text-center text-muted-foreground">
                 No hay suficientes datos para mostrar gráficos. ¡Completa al menos una reunión para empezar!
@@ -95,7 +132,7 @@ export default function StatsPage() {
                     <CardContent>
                         <ChartContainer config={efficiencyChartConfig} className="h-[300px] w-full">
                             <ResponsiveContainer>
-                                <LineChart data={chartData}>
+                                <LineChart data={meetingsChartData}>
                                     <CartesianGrid vertical={false} />
                                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
                                     <YAxis unit="%" />
@@ -119,7 +156,7 @@ export default function StatsPage() {
                     <CardContent>
                          <ChartContainer config={attendanceChartConfig} className="h-[300px] w-full">
                             <ResponsiveContainer>
-                                <BarChart data={chartData}>
+                                <BarChart data={meetingsChartData}>
                                     <CartesianGrid vertical={false} />
                                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
                                     <YAxis />
@@ -127,6 +164,30 @@ export default function StatsPage() {
                                     <Legend content={<ChartLegendContent />} />
                                     <Bar dataKey="physical" stackId="a" fill="var(--color-physical)" radius={[0, 0, 4, 4]} />
                                     <Bar dataKey="online" stackId="a" fill="var(--color-online)" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Estadísticas por Miembro</CardTitle>
+                        <CardDescription>Comparativa de participación y roles de cada miembro del equipo.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <ChartContainer config={memberStatsChartConfig} className="h-[400px] w-full">
+                            <ResponsiveContainer>
+                                <BarChart data={memberStatsData}>
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
+                                    <YAxis />
+                                    <Tooltip content={<ChartTooltipContent />} />
+                                    <Legend content={<ChartLegendContent />} />
+                                    <Bar dataKey="physicalAttendance" fill="var(--color-physicalAttendance)" radius={4} />
+                                    <Bar dataKey="onlineAttendance" fill="var(--color-onlineAttendance)" radius={4} />
+                                    <Bar dataKey="presenterCount" fill="var(--color-presenterCount)" radius={4} />
+                                    <Bar dataKey="volunteerCount" fill="var(--color-volunteerCount)" radius={4} />
+                                    <Bar dataKey="topicPresenterCount" fill="var(--color-topicPresenterCount)" radius={4} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </ChartContainer>
