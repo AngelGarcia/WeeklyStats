@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import Link from 'next/link';
 
 
 export default function MeetingDashboardPage() {
@@ -300,7 +301,7 @@ export default function MeetingDashboardPage() {
         <Card className="max-w-3xl mx-auto shadow-lg text-center">
         <CardHeader>
             <CardTitle className="font-headline text-2xl flex items-center justify-center gap-2"><BarChart /> Resumen de la Reunión</CardTitle>
-            <CardDescription>Reunión finalizada el {format(parseISO(lastMeetingSummary.endTime!), 'PPP, p', {locale: es})}</CardDescription>
+            <CardDescription>Reunión finalizada el {lastMeetingSummary.endTime ? format(parseISO(lastMeetingSummary.endTime), 'PPP, p', {locale: es}) : ''}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
             <p>¡Gran trabajo, equipo!</p>
@@ -329,9 +330,14 @@ export default function MeetingDashboardPage() {
     switch (meetingStatus) {
         case 'SETUP': return renderSetup();
         case 'IN_PROGRESS': return renderInProgress();
+        case 'COMPLETED': return renderSummary();
         default: return <p>Cargando reunión...</p>;
       }
   }
 
-  return meetingView();
+  return (
+    <main className="p-4 md:p-6 lg:p-8">
+      {meetingView()}
+    </main>
+  );
 }

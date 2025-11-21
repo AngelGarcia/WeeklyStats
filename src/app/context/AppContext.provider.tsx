@@ -16,11 +16,6 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { parseISO } from 'date-fns';
 
-const getInitialTime = () => {
-  const now = new Date();
-  return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-};
-
 type AppState = {
   members: Member[];
   meetings: Meeting[]; // Completed meetings
@@ -118,6 +113,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // --- Member mutations ---
   const addMember = useCallback((memberData: Omit<Member, 'id' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
     if (!firestore || !membersCollection) return;
+    const currentMembers = members || [];
+    const newAvatarIndex = currentMembers.length % 28; // Use 28 as we have 28 avatars
     const newMember: Omit<Member, 'id'> = {
       ...memberData,
       presenterCount: 0,
@@ -125,7 +122,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       topicPresenterCount: 0,
     };
     addDocumentNonBlocking(membersCollection, newMember);
-  }, [firestore, membersCollection]);
+  }, [firestore, membersCollection, members]);
 
   const updateMember = useCallback((member: Member) => {
     if (!firestore) return;
@@ -188,11 +185,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const startMeeting = useCallback(() => {
     if (currentMeeting) {
-      const { presenterId, secretaryId, agenda, date } = currentMeeting;
-      
-      const meetingDate = parseISO(date);
-      const [hours, minutes] = getInitialTime().split(':').map(Number); // Assuming we need to define how time is set
-      meetingDate.setHours(hours, minutes, 0, 0);
+      const meetingDate = parseISO(currentMeeting.date);
 
       updateCurrentMeeting({
         plannedStartTime: meetingDate.toISOString(),
