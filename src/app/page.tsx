@@ -56,6 +56,10 @@ export default function MeetingDashboardPage() {
     return [...members].sort((a, b) => a.name.localeCompare(b.name));
   }, [members]);
 
+  const availableMembers = useMemo(() => {
+    return sortedMembers.filter(m => m.id !== currentMeeting?.presenterId);
+  }, [sortedMembers, currentMeeting?.presenterId]);
+
   if (!isInitialized || isLoading || !currentMeeting) {
     return <div className="flex justify-center items-center h-full"><p>Cargando datos de la reunión...</p></div>;
   }
@@ -109,10 +113,6 @@ export default function MeetingDashboardPage() {
   const presenter = members.find(m => m.id === presenterId);
   const secretary = members.find(m => m.id === secretaryId);
   
-  const availableMembers = useMemo(() => {
-    return sortedMembers.filter(m => m.id !== presenterId);
-  }, [sortedMembers, presenterId]);
-
   const SaveStatusIndicator = () => {
     switch (saveStatus) {
       case 'saving':
