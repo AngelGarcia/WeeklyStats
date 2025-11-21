@@ -138,12 +138,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const membersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'members') : null, [firestore]);
   const meetingsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'meetings') : null, [firestore]);
 
-  const { data: members, isLoading: membersLoading } = useCollection<Member>(membersCollection);
-  const { data: meetings, isLoading: meetingsLoading } = useCollection<Meeting>(meetingsCollection);
+  const { data: membersFromDb, isLoading: membersLoading } = useCollection<Member>(membersCollection);
+  const { data: meetingsFromDb, isLoading: meetingsLoading } = useCollection<Meeting>(meetingsCollection);
 
   const getInitialState = (): AppState => ({
-    members: members || [],
-    meetings: meetings || [],
+    members: membersFromDb || [],
+    meetings: meetingsFromDb || [],
     currentMeeting: {
       ...initialCurrentMeetingState,
       meetingDate: new Date(),
@@ -155,20 +155,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const isInitialized = !isUserLoading && !membersLoading && !meetingsLoading;
 
   useEffect(() => {
-    if (members) {
-      dispatch({ type: 'SET_MEMBERS', payload: members });
+    if (membersFromDb) {
+      dispatch({ type: 'SET_MEMBERS', payload: membersFromDb });
     }
-  }, [members]);
+  }, [membersFromDb]);
 
   useEffect(() => {
-    if (meetings) {
-      dispatch({ type: 'SET_MEETINGS', payload: meetings });
+    if (meetingsFromDb) {
+      dispatch({ type: 'SET_MEETINGS', payload: meetingsFromDb });
     }
-  }, [meetings]);
+  }, [meetingsFromDb]);
 
   const addMember = useCallback((memberData: Omit<Member, 'id' | 'avatarUrl' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
     if (!firestore || !membersCollection) return;
-    const newAvatarIndex = state.members.length % PlaceHolderImages.length;
+    const currentMembers = membersFromDb || [];
+    const newAvatarIndex = currentMembers.length % PlaceHolderImages.length;
     const newMember: Omit<Member, 'id'> = {
       ...memberData,
       avatarUrl: PlaceHolderImages[newAvatarIndex].imageUrl,
@@ -177,7 +178,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       topicPresenterCount: 0,
     };
     addDocumentNonBlocking(membersCollection, newMember);
-  }, [firestore, membersCollection, state.members.length]);
+  }, [firestore, membersCollection, membersFromDb]);
 
   const updateMember = useCallback((member: Member) => {
     if (!firestore) return;
@@ -306,7 +307,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       updateCurrentMeeting,
       setCurrentMeetingStatus,
     }),
-    [state, isInitialized, startMeeting, endMeeting, addMember, updateMember, deleteMember, addTopic, updateTopic, removeTopic, resetCurrentMeeting]
+    [state, addMember, updateMember, deleteMember, addTopic, updateTopic, removeTopic, resetCurrentMeeting, startMeeting, endMeeting, isInitialized]
   );
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
