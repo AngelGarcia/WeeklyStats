@@ -5,14 +5,26 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic, AlertCircle, Sparkles } from 'lucide-react';
+import { Clock, User, Mic, AlertCircle, Sparkles, Trash2 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from '@/components/ui/button';
 
 export default function HistoryPage() {
-  const { meetings, members, isInitialized } = useAppContext();
+  const { meetings, members, isInitialized, clearHistory } = useAppContext();
 
   const sortedMeetings = useMemo(() => {
     if (!meetings) return [];
@@ -31,7 +43,10 @@ export default function HistoryPage() {
       const actual = parseISO(meeting.actualStartTime);
       const diffMinutes = (actual.getTime() - planned.getTime()) / (1000 * 60);
 
-      if (diffMinutes <= 0) {
+      if (diffMinutes < -1) {
+          return { text: `Adelanto de ${Math.abs(Math.round(diffMinutes))} min`, color: "text-blue-600", iconColor: "text-blue-500" };
+      }
+      if (diffMinutes <= 1) { // A small grace period for "on time"
           return { text: "Puntual", color: "text-green-600", iconColor: "text-green-500" };
       }
       if (diffMinutes <= 5) {
@@ -43,7 +58,30 @@ export default function HistoryPage() {
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
       <div className="space-y-6">
-        <h1 className="text-3xl font-headline font-bold">Historial de Reuniones</h1>
+        <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-headline font-bold">Historial de Reuniones</h1>
+            {sortedMeetings.length > 0 && (
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Limpiar Historial
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Se eliminarán permanentemente todas las reuniones completadas del historial.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={clearHistory}>Sí, eliminar todo</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
+        </div>
         {sortedMeetings.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center text-muted-foreground">
@@ -77,7 +115,7 @@ export default function HistoryPage() {
                          <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger>
-                                    <div className={`flex items-center gap-1 text-xs ${punctuality.color}`}>
+                                    <div className={`flex items-center gap-1 text-xs font-semibold ${punctuality.color}`}>
                                         <AlertCircle className={`w-4 h-4 ${punctuality.iconColor}`} />
                                         <span>{punctuality.text}</span>
                                     </div>

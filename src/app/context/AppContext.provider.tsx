@@ -35,6 +35,7 @@ type AppContextType = AppState & {
   resetCurrentMeeting: () => Promise<void>;
   startMeeting: () => void;
   endMeeting: () => void;
+  clearHistory: () => Promise<void>;
   isInitialized: boolean;
   updateCurrentMeeting: (payload: Partial<Meeting>) => void;
   lastMeetingSummary: Meeting | null;
@@ -243,6 +244,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
 
   }, [currentMeeting, members, firestore, updateCurrentMeetingState, updateMember]);
+  
+  const clearHistory = useCallback(async () => {
+    if (!firestore || !completedMeetings) return;
+    setSaveStatus('saving');
+    try {
+      const deletePromises = completedMeetings
+        .filter(m => m.status === 'COMPLETED')
+        .map(meeting => {
+          const meetingRef = doc(firestore, 'meetings', meeting.id);
+          return deleteDocumentNonBlocking(meetingRef);
+        });
+      await Promise.all(deletePromises);
+      setSaveStatus('saved');
+    } catch (e) {
+      console.error("Failed to clear history", e);
+      setSaveStatus('error');
+    }
+  }, [firestore, completedMeetings]);
 
 
   const contextValue = useMemo(
@@ -260,6 +279,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       resetCurrentMeeting,
       startMeeting,
       endMeeting,
+      clearHistory,
       isInitialized,
       isLoading,
       updateCurrentMeeting,
@@ -278,7 +298,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         removeTopic, 
         resetCurrentMeeting, 
         startMeeting, 
-        endMeeting, 
+        endMeeting,
+        clearHistory, 
         isInitialized,
         isLoading, 
         updateCurrentMeeting,
