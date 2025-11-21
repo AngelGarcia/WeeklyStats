@@ -168,7 +168,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addMember = useCallback((memberData: Omit<Member, 'id' | 'avatarUrl' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
     if (!firestore || !membersCollection) return;
-    const currentMembers = membersFromDb || [];
+    const currentMembers = state.members || [];
     const newAvatarIndex = currentMembers.length % PlaceHolderImages.length;
     const newMember: Omit<Member, 'id'> = {
       ...memberData,
@@ -178,7 +178,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       topicPresenterCount: 0,
     };
     addDocumentNonBlocking(membersCollection, newMember);
-  }, [firestore, membersCollection, membersFromDb]);
+  }, [firestore, membersCollection, state.members]);
 
   const updateMember = useCallback((member: Member) => {
     if (!firestore) return;
