@@ -132,7 +132,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (members.length > 0 && currentMemberIds.size !== members.length) {
             const newAttendance: AttendanceRecord[] = members.map(member => {
                 const existingRecord = activeMeeting.attendance?.find(a => a.memberId === member.id);
-                return existingRecord || { memberId: member.id, status: 'absent' };
+                return existingRecord || { memberId: member.id, status: 'present', location: 'physical' };
             });
             setCurrentMeeting({...activeMeeting, attendance: newAttendance});
         } else {
@@ -160,7 +160,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const initialAttendance: AttendanceRecord[] = members.map(member => ({
         memberId: member.id,
-        status: 'absent',
+        status: 'present',
+        location: 'physical'
     }));
 
     const newMeeting: Omit<Meeting, 'id'> = {

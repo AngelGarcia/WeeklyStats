@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -56,6 +56,13 @@ export default function MeetingDashboardPage() {
   }, [meetings]);
 
   const suggestedPresenterId = useMemo(() => lastCompletedMeeting?.secretaryId, [lastCompletedMeeting]);
+
+  useEffect(() => {
+    if (currentMeeting?.status === 'SETUP' && !currentMeeting.presenterId && suggestedPresenterId) {
+      updateCurrentMeeting({ presenterId: suggestedPresenterId });
+    }
+  }, [currentMeeting?.status, currentMeeting?.presenterId, suggestedPresenterId, updateCurrentMeeting]);
+
 
   const sortedMembers = useMemo(() => {
     if (!members) return [];
@@ -122,13 +129,11 @@ export default function MeetingDashboardPage() {
   const handleAttendanceChange = (memberId: string, status: 'present' | 'absent', location?: 'physical' | 'online') => {
     const newAttendance = currentMeeting.attendance?.map(record => {
         if (record.memberId === memberId) {
-            const newRecord: AttendanceRecord = { ...record, status };
+            const newRecord: Partial<AttendanceRecord> & {memberId: string} = { memberId: record.memberId, status };
             if (status === 'present') {
               newRecord.location = location || 'physical';
-            } else {
-              delete newRecord.location;
             }
-            return newRecord;
+            return newRecord as AttendanceRecord;
         }
         return record;
     }) || [];
@@ -205,7 +210,7 @@ export default function MeetingDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="presenter">Presentador</Label>
-            <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id })} defaultValue={suggestedPresenterId || undefined} value={presenterId || undefined}>
+            <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id })} value={presenterId || undefined}>
               <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
               <SelectContent>
                 {sortedMembers.map(member => (
@@ -312,7 +317,7 @@ export default function MeetingDashboardPage() {
                             key={member.id} 
                             className={cn(
                                 "flex flex-col sm:flex-row items-center justify-between gap-2 p-2 border rounded-md transition-colors",
-                                isAbsent ? "bg-muted/50 text-muted-foreground" : ""
+                                isAbsent && "bg-muted/50 text-muted-foreground"
                             )}
                         >
                             <div className="flex items-center gap-3">
@@ -400,7 +405,7 @@ export default function MeetingDashboardPage() {
       </Card>
 
       <div className="flex justify-end">
-        <Button variant="default" onClick={() => endMeeting([])} disabled={agenda.some(t => t.status !== 'completed')}>
+        <Button variant="default" onClick={endMeeting} disabled={agenda.some(t => t.status !== 'completed')}>
           <Check className="mr-2" /> Finalizar Reunión
         </Button>
       </div>
