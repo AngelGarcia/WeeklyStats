@@ -18,6 +18,12 @@ export type Topic = {
   summary?: string;
 };
 
+export type AttendanceRecord = {
+  memberId: string;
+  status: 'present' | 'absent';
+  location?: 'physical' | 'online';
+}
+
 export type Meeting = {
   id: string;
   date: string; // ISO string
@@ -28,6 +34,7 @@ export type Meeting = {
   presenterId: string | null;
   secretaryId: string | null;
   agenda: Topic[];
+  attendance?: AttendanceRecord[];
 };
 
 export type MeetingStatus = "SETUP" | "IN_PROGRESS" | "SUMMARY" | "COMPLETED";

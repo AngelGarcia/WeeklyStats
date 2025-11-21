@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAppContext } from '@/app/context/AppContext';
-import type { Topic, Member } from '@/lib/types';
+import type { Topic, Member, AttendanceRecord } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { SecretarySuggester } from '@/app/components/SecretarySuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle } from 'lucide-react';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,6 +19,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
 
 
 export default function MeetingDashboardPage() {
@@ -53,12 +55,15 @@ export default function MeetingDashboardPage() {
   const suggestedPresenterId = useMemo(() => lastCompletedMeeting?.secretaryId, [lastCompletedMeeting]);
 
   const sortedMembers = useMemo(() => {
+    if (!members) return [];
     return [...members].sort((a, b) => a.name.localeCompare(b.name));
   }, [members]);
 
   const availableMembers = useMemo(() => {
-    return sortedMembers.filter(m => m.id !== currentMeeting?.presenterId);
+    if (!currentMeeting?.presenterId || !sortedMembers) return [];
+    return sortedMembers.filter(m => m.id !== currentMeeting.presenterId);
   }, [sortedMembers, currentMeeting?.presenterId]);
+
 
   if (!isInitialized || isLoading || !currentMeeting) {
     return <div className="flex justify-center items-center h-full"><p>Cargando datos de la reunión...</p></div>;
@@ -72,6 +77,7 @@ export default function MeetingDashboardPage() {
     date,
     plannedStartTime,
     actualStartTime,
+    attendance
   } = currentMeeting;
 
   const meetingDate = date ? parseISO(date) : new Date();
@@ -109,6 +115,16 @@ export default function MeetingDashboardPage() {
     oldDate.setHours(hours, minutes);
     updateCurrentMeeting({ date: oldDate.toISOString() });
   }
+
+  const handleAttendanceChange = (memberId: string, status: 'present' | 'absent', location?: 'physical' | 'online') => {
+    const newAttendance = currentMeeting.attendance?.map(record => {
+        if (record.memberId === memberId) {
+            return { ...record, status, location: status === 'present' ? location : undefined };
+        }
+        return record;
+    }) || [];
+    updateCurrentMeeting({ attendance: newAttendance });
+  };
   
   const presenter = members.find(m => m.id === presenterId);
   const secretary = members.find(m => m.id === secretaryId);
@@ -130,7 +146,7 @@ export default function MeetingDashboardPage() {
     <Card className="max-w-3xl mx-auto shadow-lg">
       <CardHeader>
         <CardTitle className="font-headline text-2xl flex items-center gap-2"><Users /> Configurar Reunión</CardTitle>
-        <CardDescription>Define los detalles y la agenda para la nueva reunión.</CardDescription>
+        <CardDescription>Define los detalles, la agenda y la asistencia para la nueva reunión.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -207,6 +223,8 @@ export default function MeetingDashboardPage() {
           onSelectSecretary={(id) => updateCurrentMeeting({ secretaryId: id })}
         />
         <Separator />
+        
+        {/* Agenda Section */}
         <div>
           <Label className="text-lg font-medium">Agenda</Label>
            <form onSubmit={handleAddTopic} className="flex flex-col sm:flex-row items-end gap-2 mt-2">
@@ -258,6 +276,59 @@ export default function MeetingDashboardPage() {
             )})}
           </div>
         </div>
+
+        <Separator />
+
+        {/* Attendance Section */}
+        <div>
+            <Label className="text-lg font-medium">Asistencia</Label>
+            <div className="space-y-3 mt-2">
+                {sortedMembers.map(member => {
+                    const memberAttendance = attendance?.find(a => a.memberId === member.id);
+                    const value = memberAttendance?.status === 'present' 
+                        ? `present-${memberAttendance.location}`
+                        : 'absent';
+
+                    return (
+                        <div key={member.id} className="flex flex-col sm:flex-row items-center justify-between gap-2 p-2 border rounded-md">
+                            <div className="flex items-center gap-3">
+                                <Avatar>
+                                    <AvatarImage src={member.avatarUrl} alt={member.name} />
+                                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <span className="font-medium">{member.name}</span>
+                            </div>
+                            <RadioGroup 
+                                value={value} 
+                                onValueChange={(val) => {
+                                    if (val === 'absent') {
+                                        handleAttendanceChange(member.id, 'absent');
+                                    } else {
+                                        const location = val.split('-')[1] as 'physical' | 'online';
+                                        handleAttendanceChange(member.id, 'present', location);
+                                    }
+                                }}
+                                className="flex items-center gap-4"
+                            >
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="present-physical" id={`physical-${member.id}`} />
+                                    <Label htmlFor={`physical-${member.id}`} className="flex items-center gap-1"><Building className="h-4 w-4"/> Físico</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="present-online" id={`online-${member.id}`} />
+                                    <Label htmlFor={`online-${member.id}`} className="flex items-center gap-1"><Laptop className="h-4 w-4"/> Online</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="absent" id={`absent-${member.id}`} />
+                                    <Label htmlFor={`absent-${member.id}`}>Ausente</Label>
+                                </div>
+                            </RadioGroup>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+
       </CardContent>
       <CardFooter className="justify-between items-center">
         <SaveStatusIndicator />

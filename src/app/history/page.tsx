@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic, AlertCircle, Sparkles, Trash2 } from 'lucide-react';
+import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Laptop, Building } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -22,6 +22,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import type { AttendanceRecord, Meeting } from '@/lib/types';
+
 
 export default function HistoryPage() {
   const { meetings, members, isInitialized, clearHistory, deleteMeeting } = useAppContext();
@@ -35,7 +38,7 @@ export default function HistoryPage() {
     return <div className="flex justify-center items-center h-full"><p>Cargando historial...</p></div>;
   }
   
-  const getPunctuality = (meeting: typeof meetings[0]) => {
+  const getPunctuality = (meeting: Meeting) => {
       if (!meeting.plannedStartTime || !meeting.actualStartTime) {
           return { text: "N/A", color: "text-muted-foreground", iconColor: "text-muted-foreground" };
       }
@@ -53,6 +56,12 @@ export default function HistoryPage() {
           return { text: `Retraso de ${Math.round(diffMinutes)} min`, color: "text-yellow-600", iconColor: "text-yellow-500" };
       }
       return { text: `Retraso de ${Math.round(diffMinutes)} min`, color: "text-red-600", iconColor: "text-red-500" };
+  };
+
+  const getAttendanceSummary = (attendance: AttendanceRecord[] | undefined) => {
+    if (!attendance) return '0/0';
+    const present = attendance.filter(a => a.status === 'present').length;
+    return `${present}/${attendance.length}`;
   };
 
   return (
@@ -109,6 +118,10 @@ export default function HistoryPage() {
                                     {meeting.actualStartTime ? format(parseISO(meeting.actualStartTime), 'HH:mm') : ''}h - {meeting.endTime ? format(parseISO(meeting.endTime), 'HH:mm')+'h' : ''}
                                     ({formatTime(totalDuration)})
                                   </span>
+                                </div>
+                                 <div className="flex items-center gap-2">
+                                    <Users className="w-4 h-4" />
+                                    <span>Asistencia: {getAttendanceSummary(meeting.attendance)}</span>
                                 </div>
                             </CardDescription>
                         </div>
@@ -179,33 +192,73 @@ export default function HistoryPage() {
                         </div>
                     </div>
                     <div>
-                        <h4 className="font-semibold mb-2">Temas y Resúmenes</h4>
-                        <ScrollArea className="h-40">
-                           <Accordion type="single" collapsible className="w-full">
-                                {meeting.agenda.map(topic => (
-                                    <AccordionItem value={topic.id} key={topic.id}>
-                                        <AccordionTrigger className="text-sm py-2">
-                                          <div className="flex justify-between w-full pr-2">
-                                            <span className="truncate flex-1 text-left">{topic.title}</span>
-                                            <span className="text-muted-foreground ml-2">
-                                               {formatTime(topic.actualDuration)} / {topic.estimatedDuration} min
-                                            </span>
-                                          </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="text-xs text-muted-foreground space-y-2 pl-4">
-                                           {topic.summary ? (
-                                                <div className="p-2 bg-muted/50 rounded-md">
-                                                    <p className="font-semibold flex items-center gap-1"><Sparkles className="w-3 h-3 text-primary" /> Resumen IA</p>
-                                                    <p className="whitespace-pre-wrap">{topic.summary}</p>
+                        <Accordion type="single" collapsible className="w-full -mx-1">
+                             <AccordionItem value="asistencia">
+                                <AccordionTrigger className="text-sm font-semibold px-1">
+                                    Detalle de Asistencia
+                                </AccordionTrigger>
+                                <AccordionContent className="text-xs text-muted-foreground space-y-2">
+                                     <ScrollArea className="h-32">
+                                        <div className="space-y-2 pr-4">
+                                        {(meeting.attendance || []).map(record => {
+                                            const member = members.find(m => m.id === record.memberId);
+                                            if (!member) return null;
+                                            return (
+                                                <div key={record.memberId} className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="h-6 w-6">
+                                                            <AvatarImage src={member.avatarUrl} />
+                                                            <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                        <span>{member.name}</span>
+                                                    </div>
+                                                    {record.status === 'present' ? (
+                                                        <Badge variant="secondary" className="flex items-center gap-1">
+                                                            {record.location === 'physical' ? <Building className="h-3 w-3"/> : <Laptop className="h-3 w-3"/>}
+                                                            {record.location === 'physical' ? 'Físico' : 'Online'}
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline">Ausente</Badge>
+                                                    )}
                                                 </div>
-                                           ) : (
-                                            <p>No se generó un resumen para este tema.</p>
-                                           )}
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
-                        </ScrollArea>
+                                            );
+                                        })}
+                                        </div>
+                                    </ScrollArea>
+                                </AccordionContent>
+                            </AccordionItem>
+                            <AccordionItem value="temas">
+                                <AccordionTrigger className="text-sm font-semibold px-1">Temas y Resúmenes</AccordionTrigger>
+                                <AccordionContent>
+                                    <ScrollArea className="h-40">
+                                    <Accordion type="single" collapsible className="w-full">
+                                            {meeting.agenda.map(topic => (
+                                                <AccordionItem value={topic.id} key={topic.id}>
+                                                    <AccordionTrigger className="text-sm py-2">
+                                                    <div className="flex justify-between w-full pr-2">
+                                                        <span className="truncate flex-1 text-left">{topic.title}</span>
+                                                        <span className="text-muted-foreground ml-2">
+                                                        {formatTime(topic.actualDuration)} / {topic.estimatedDuration} min
+                                                        </span>
+                                                    </div>
+                                                    </AccordionTrigger>
+                                                    <AccordionContent className="text-xs text-muted-foreground space-y-2 pl-4">
+                                                    {topic.summary ? (
+                                                            <div className="p-2 bg-muted/50 rounded-md">
+                                                                <p className="font-semibold flex items-center gap-1"><Sparkles className="w-3 h-3 text-primary" /> Resumen IA</p>
+                                                                <p className="whitespace-pre-wrap">{topic.summary}</p>
+                                                            </div>
+                                                    ) : (
+                                                        <p>No se generó un resumen para este tema.</p>
+                                                    )}
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            ))}
+                                        </Accordion>
+                                    </ScrollArea>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
                     </div>
                   </CardContent>
                 </Card>

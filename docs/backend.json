@@ -55,6 +55,13 @@
         "secretaryId": {
           "type": "string",
           "description": "Reference to the Secretary. (Relationship: Meeting 1:1 Member)"
+        },
+        "attendance": {
+          "type": "array",
+          "description": "List of attendance records for the meeting.",
+          "items": {
+            "$ref": "#/backend/entities/AttendanceRecord"
+          }
         }
       },
       "required": [
@@ -100,6 +107,38 @@
         "meetingId",
         "topic",
         "estimatedTime"
+      ]
+    },
+    "AttendanceRecord": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AttendanceRecord",
+      "type": "object",
+      "description": "Represents a member's attendance for a specific meeting.",
+      "properties": {
+        "memberId": {
+          "type": "string",
+          "description": "The ID of the member."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "present",
+            "absent"
+          ],
+          "description": "The attendance status of the member."
+        },
+        "location": {
+          "type": "string",
+          "enum": [
+            "physical",
+            "online"
+          ],
+          "description": "The location of the member if present."
+        }
+      },
+      "required": [
+        "memberId",
+        "status"
       ]
     }
   },

@@ -9,7 +9,7 @@ import React, {
   useCallback,
   useContext,
 } from 'react';
-import type { Member, Meeting, Topic, MeetingStatus } from '@/lib/types';
+import type { Member, Meeting, Topic, MeetingStatus, AttendanceRecord } from '@/lib/types';
 import { useFirebase, useUser, useMemoFirebase } from '@/firebase/provider';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -82,28 +82,50 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const setupMeeting = allMeetings.find(m => m.status === 'SETUP');
       const completed = allMeetings.filter(m => m.status === 'COMPLETED' || m.status === 'IN_PROGRESS'); // show in progress in history too
       
-      setCurrentMeeting(setupMeeting || null);
+      if (setupMeeting) {
+        // Ensure attendance is initialized for any new members
+        const currentMemberIds = new Set(setupMeeting.attendance?.map(a => a.memberId) || []);
+        if (members.length > 0 && currentMemberIds.size !== members.length) {
+            const newAttendance: AttendanceRecord[] = members.map(member => {
+                const existingRecord = setupMeeting.attendance?.find(a => a.memberId === member.id);
+                return existingRecord || { memberId: member.id, status: 'absent' };
+            });
+            setCurrentMeeting({...setupMeeting, attendance: newAttendance});
+        } else {
+            setCurrentMeeting(setupMeeting);
+        }
+      } else {
+        setCurrentMeeting(null);
+      }
+      
       setCompletedMeetings(completed);
 
-      if(!setupMeeting && !isCreatingMeeting && isInitialized) {
+      if(!setupMeeting && !isCreatingMeeting && isInitialized && members.length > 0) {
         createNewMeeting();
       }
 
-    } else if (isInitialized && !isCreatingMeeting) {
+    } else if (isInitialized && !isCreatingMeeting && members.length > 0) {
        createNewMeeting();
     }
-  }, [allMeetings, isInitialized, isCreatingMeeting]);
+  }, [allMeetings, isInitialized, isCreatingMeeting, members]);
 
   const createNewMeeting = useCallback(async () => {
     if (!firestore || isCreatingMeeting) return;
     setIsCreatingMeeting(true);
     setSaveStatus('saving');
+
+    const initialAttendance: AttendanceRecord[] = members.map(member => ({
+        memberId: member.id,
+        status: 'absent',
+    }));
+
     const newMeeting: Omit<Meeting, 'id'> = {
         date: new Date().toISOString(),
         status: 'SETUP',
         presenterId: null,
         secretaryId: null,
         agenda: [],
+        attendance: initialAttendance,
     };
     try {
         const meetingsCollectionRef = collection(firestore, 'meetings');
@@ -115,7 +137,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } finally {
        setIsCreatingMeeting(false);
     }
-}, [firestore, isCreatingMeeting]);
+}, [firestore, isCreatingMeeting, members]);
 
 
   // --- Member mutations ---
@@ -265,16 +287,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [firestore, completedMeetings]);
 
   const deleteMeeting = useCallback((id: string) => {
-    if (!firestore) return;
+    if (!firestore) return Promise.reject(new Error("Firestore not initialized"));
     setSaveStatus('saving');
     const meetingRef = doc(firestore, 'meetings', id);
-    deleteDocumentNonBlocking(meetingRef)
+    return deleteDocumentNonBlocking(meetingRef)
       .then(() => {
         setSaveStatus('saved');
       })
       .catch((e) => {
         console.error(`Failed to delete meeting ${id}`, e);
         setSaveStatus('error');
+        // No need to re-throw as non-blocking handles the permission error emission
       });
   }, [firestore]);
 
