@@ -119,7 +119,13 @@ export default function MeetingDashboardPage() {
   const handleAttendanceChange = (memberId: string, status: 'present' | 'absent', location?: 'physical' | 'online') => {
     const newAttendance = currentMeeting.attendance?.map(record => {
         if (record.memberId === memberId) {
-            return { ...record, status, location: status === 'present' ? location : undefined };
+            const newRecord: AttendanceRecord = { ...record, status };
+            if (status === 'present') {
+              newRecord.location = location;
+            } else {
+              delete newRecord.location; // Remove location property for absent members
+            }
+            return newRecord;
         }
         return record;
     }) || [];
