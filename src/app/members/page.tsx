@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '@/app/context/AppContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,18 +33,51 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ArrowUpDown } from 'lucide-react';
 import type { Member } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
+type SortKey = keyof Omit<Member, 'id' | 'avatarUrl'>;
+type SortDirection = 'asc' | 'desc';
+
 export default function MemberManagementPage() {
   const { members, addMember, updateMember, deleteMember, isInitialized } = useAppContext();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [formState, setFormState] = useState({ name: '', presenterCount: 0, volunteerCount: 0, topicPresenterCount: 0, avatarUrl: '' });
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'asc' });
+
+  const sortedMembers = useMemo(() => {
+    let sortableMembers = [...members];
+    if (sortConfig !== null) {
+      sortableMembers.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableMembers;
+  }, [members, sortConfig]);
+
+  const requestSort = (key: SortKey) => {
+    let direction: SortDirection = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+  
+  const getSortIndicator = (key: SortKey) => {
+    if (sortConfig.key !== key) return null;
+    return sortConfig.direction === 'asc' ? '▲' : '▼';
+  };
 
   if (!isInitialized) {
     return <div className="flex justify-center items-center h-full"><p>Cargando datos de miembros...</p></div>;
@@ -81,6 +114,18 @@ export default function MemberManagementPage() {
     }
     setIsDialogOpen(false);
   };
+  
+  const renderSortableHeader = (key: SortKey, label: string, className: string = "") => (
+    <TableHead className={cn("cursor-pointer", className)} onClick={() => requestSort(key)}>
+      <div className="flex items-center gap-2">
+        {label}
+        {sortConfig.key === key 
+          ? <span className="text-xs">{getSortIndicator(key)}</span>
+          : <ArrowUpDown className="h-3 w-3 opacity-50" />
+        }
+      </div>
+    </TableHead>
+  );
 
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -95,15 +140,15 @@ export default function MemberManagementPage() {
             <Table>
             <TableHeader>
                 <TableRow>
-                <TableHead>Miembro</TableHead>
-                <TableHead className="text-center">Reuniones Lideradas</TableHead>
-                <TableHead className="text-center">Secretario</TableHead>
-                <TableHead className="text-center">Temas Liderados</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                  {renderSortableHeader('name', 'Miembro')}
+                  {renderSortableHeader('presenterCount', 'Reuniones Lideradas', 'text-center')}
+                  {renderSortableHeader('volunteerCount', 'Secretario', 'text-center')}
+                  {renderSortableHeader('topicPresenterCount', 'Temas Liderados', 'text-center')}
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {members.map(member => (
+                {sortedMembers.map(member => (
                 <TableRow key={member.id}>
                     <TableCell>
                     <div className="flex items-center gap-3">
