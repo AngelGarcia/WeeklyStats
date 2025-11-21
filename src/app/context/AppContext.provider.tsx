@@ -36,7 +36,7 @@ type AppContextType = AppState & {
   startMeeting: () => void;
   endMeeting: () => void;
   clearHistory: () => Promise<void>;
-  deleteMeeting: (id: string) => Promise<void>;
+  deleteMeeting: (id: string) => void;
   isInitialized: boolean;
   updateCurrentMeeting: (payload: Partial<Meeting>) => void;
   lastMeetingSummary: Meeting | null;
@@ -264,17 +264,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [firestore, completedMeetings]);
 
-  const deleteMeeting = useCallback(async (id: string) => {
+  const deleteMeeting = useCallback((id: string) => {
     if (!firestore) return;
     setSaveStatus('saving');
-    try {
-        const meetingRef = doc(firestore, 'meetings', id);
-        await deleteDocumentNonBlocking(meetingRef);
+    const meetingRef = doc(firestore, 'meetings', id);
+    deleteDocumentNonBlocking(meetingRef)
+      .then(() => {
         setSaveStatus('saved');
-    } catch (e) {
+      })
+      .catch((e) => {
         console.error(`Failed to delete meeting ${id}`, e);
         setSaveStatus('error');
-    }
+      });
   }, [firestore]);
 
 
