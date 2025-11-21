@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { Home, Users, History, Settings, User as UserIcon } from "lucide-react";
+import { Home, Users, History, Settings, User as UserIcon, BarChart } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { Logo } from "@/components/icons";
@@ -42,11 +42,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={pathname.startsWith('/members')} tooltip="Miembros">
-                <Link href="/members">
-                  <Users />
-                  <span>Miembros</span>
+             <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/stats')} tooltip="Estadísticas">
+                <Link href="/stats">
+                  <BarChart />
+                  <span>Estadísticas</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -55,6 +55,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <Link href="/history">
                   <History />
                   <span>Historial</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/members')} tooltip="Miembros">
+                <Link href="/members">
+                  <Users />
+                  <span>Miembros</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
