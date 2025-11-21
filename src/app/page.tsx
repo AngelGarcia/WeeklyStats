@@ -121,9 +121,9 @@ export default function MeetingDashboardPage() {
         if (record.memberId === memberId) {
             const newRecord: AttendanceRecord = { ...record, status };
             if (status === 'present') {
-              newRecord.location = location;
+              newRecord.location = location || 'physical';
             } else {
-              delete newRecord.location; // Remove location property for absent members
+              delete newRecord.location;
             }
             return newRecord;
         }
@@ -291,18 +291,25 @@ export default function MeetingDashboardPage() {
             <div className="space-y-3 mt-2">
                 {sortedMembers.map(member => {
                     const memberAttendance = attendance?.find(a => a.memberId === member.id);
+                    const isAbsent = memberAttendance?.status === 'absent';
                     const value = memberAttendance?.status === 'present' 
                         ? `present-${memberAttendance.location}`
                         : 'absent';
 
                     return (
-                        <div key={member.id} className="flex flex-col sm:flex-row items-center justify-between gap-2 p-2 border rounded-md">
+                        <div 
+                            key={member.id} 
+                            className={cn(
+                                "flex flex-col sm:flex-row items-center justify-between gap-2 p-2 border rounded-md transition-colors",
+                                isAbsent ? "bg-muted/50 text-muted-foreground" : ""
+                            )}
+                        >
                             <div className="flex items-center gap-3">
-                                <Avatar>
+                                <Avatar className={cn(isAbsent && "opacity-50")}>
                                     <AvatarImage src={member.avatarUrl} alt={member.name} />
                                     <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                <span className="font-medium">{member.name}</span>
+                                <span className={cn("font-medium", isAbsent && "text-muted-foreground")}>{member.name}</span>
                             </div>
                             <RadioGroup 
                                 value={value} 
