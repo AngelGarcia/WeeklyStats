@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { AttendanceRecord, Meeting, SurveyResult } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label';
 
 
 export default function HistoryPage() {
@@ -56,7 +57,7 @@ export default function HistoryPage() {
       if (diffMinutes <= 5) {
           return { text: `Retraso de ${Math.round(diffMinutes)} min`, color: "text-yellow-600", iconColor: "text-yellow-500" };
       }
-      return { text: `Retraso de ${Math.round(diffMinutes)} min`, color: "text-red-600", iconColor: "text-red-500" };
+      return { text: `Retraso de ${Math.round(diffMinutes)} min`, color: "text-red-600", iconColor: "text-red-600" };
   };
 
   const getAttendanceSummary = (attendance: AttendanceRecord[] | undefined) => {
