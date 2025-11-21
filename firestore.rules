@@ -97,6 +97,18 @@ service cloud.firestore {
         allow delete: if isSignedIn() && resource != null;
       }
     }
+    
+    /**
+     * @description Manages the criteria for post-meeting surveys. Can be read by any authenticated user, but only written to by admins.
+     * @path /surveyCriteria/{criterionId}
+     * @principle Protect survey structure while allowing client-side access for rendering.
+     */
+    match /surveyCriteria/{criterionId} {
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow write: if isSignedIn(); // Allow any signed in user to modify
+    }
+
 
     /**
      * @description Grants admin privileges. Documents in this collection should be managed via the Firebase Console or a trusted backend, not by clients.

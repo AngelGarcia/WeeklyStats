@@ -9,9 +9,9 @@ import React, {
   useCallback,
   useContext,
 } from 'react';
-import type { Member, Meeting, Topic, MeetingStatus, AttendanceRecord } from '@/lib/types';
+import type { Member, Meeting, Topic, MeetingStatus, AttendanceRecord, SurveyCriterion, SurveyResult } from '@/lib/types';
 import { useFirebase, useUser, useMemoFirebase } from '@/firebase/provider';
-import { collection, doc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, query, orderBy, writeBatch } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { parseISO } from 'date-fns';
@@ -22,6 +22,7 @@ type AppState = {
   members: Member[];
   meetings: Meeting[]; // Completed meetings
   currentMeeting: Meeting | null;
+  surveyCriteria: SurveyCriterion[];
   saveStatus: SaveStatus;
 };
 
@@ -34,16 +35,30 @@ type AppContextType = AppState & {
   removeTopic: (id: string) => void;
   resetCurrentMeeting: () => Promise<void>;
   startMeeting: () => void;
-  endMeeting: () => void;
+  endMeeting: (surveyResults: SurveyResult[]) => void;
+  completeSurvey: (surveyResults: SurveyResult[]) => void;
   clearHistory: () => Promise<void>;
   deleteMeeting: (id: string) => void;
   isInitialized: boolean;
   updateCurrentMeeting: (payload: Partial<Meeting>) => void;
   lastMeetingSummary: Meeting | null;
   isLoading: boolean;
+  updateCriteria: (criteria: SurveyCriterion[]) => Promise<void>;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const initialCriteria: Omit<SurveyCriterion, 'id'>[] = [
+    { name: "Venir preparado", weight: 20 },
+    { name: "Sustitutos preparados", weight: 10 },
+    { name: "Tiempo y puntualidad", weight: 20 },
+    { name: "Abandono de la reunión", weight: 15 },
+    { name: "Sin móviles u ordenadores", weight: 15 },
+    { name: "Silencio = acuerdo", weight: 5 },
+    { name: "Acciones / Parking Lot / Follow-up", weight: 10 },
+    { name: "Sala ordenada al salir", weight: 5 },
+];
+
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { firestore } = useFirebase();
@@ -59,15 +74,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   [firestore]);
   const { data: allMeetings, isLoading: meetingsLoading } = useCollection<Meeting>(meetingsQuery);
 
+  const criteriaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'surveyCriteria') : null, [firestore]);
+  const { data: criteriaFromDb, isLoading: criteriaLoading } = useCollection<SurveyCriterion>(criteriaCollection);
+
+
   // --- State ---
   const [members, setMembers] = useState<Member[]>([]);
   const [completedMeetings, setCompletedMeetings] = useState<Meeting[]>([]);
   const [currentMeeting, setCurrentMeeting] = useState<Meeting | null>(null);
+  const [surveyCriteria, setSurveyCriteria] = useState<SurveyCriterion[]>([]);
   const [lastMeetingSummary, setLastMeetingSummary] = useState<Meeting | null>(null);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   
-  const isLoading = isUserLoading || membersLoading || meetingsLoading || isCreatingMeeting;
+  const isLoading = isUserLoading || membersLoading || meetingsLoading || criteriaLoading || isCreatingMeeting;
   const isInitialized = !isLoading;
 
   // --- Effects to sync data from DB to state ---
@@ -76,10 +96,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setMembers(membersFromDb);
     }
   }, [membersFromDb]);
+  
+  useEffect(() => {
+    if (criteriaFromDb) {
+        if (criteriaFromDb.length > 0) {
+            setSurveyCriteria(criteriaFromDb.sort((a, b) => a.name.localeCompare(b.name)));
+        } else if (firestore && criteriaCollection && !criteriaLoading && criteriaFromDb.length === 0) {
+            // If criteria is empty in DB, populate with initial data
+            const batch = writeBatch(firestore);
+            initialCriteria.forEach(criterion => {
+                const docRef = doc(criteriaCollection);
+                batch.set(docRef, criterion);
+            });
+            batch.commit().catch(e => console.error("Failed to set initial criteria", e));
+        }
+    }
+  }, [criteriaFromDb, criteriaLoading, firestore, criteriaCollection]);
+
 
   useEffect(() => {
     if (allMeetings) {
-      const setupMeeting = allMeetings.find(m => m.status === 'SETUP');
+      const setupMeeting = allMeetings.find(m => m.status === 'SETUP' || m.status === 'SURVEY');
       const completed = allMeetings.filter(m => m.status === 'COMPLETED' || m.status === 'IN_PROGRESS'); // show in progress in history too
       
       if (setupMeeting) {
@@ -226,8 +263,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
     }
   }, [currentMeeting, updateCurrentMeeting]);
+  
+  const endMeeting = useCallback(() => {
+    if (currentMeeting) {
+      updateCurrentMeeting({ status: 'SURVEY' });
+    }
+  }, [currentMeeting, updateCurrentMeeting]);
 
-  const endMeeting = useCallback(async () => {
+
+  const completeSurvey = useCallback(async (surveyResults: SurveyResult[]) => {
     if (!firestore || !currentMeeting) return;
     const { presenterId, secretaryId, agenda } = currentMeeting;
     
@@ -236,6 +280,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ...currentMeeting,
       status: 'COMPLETED' as MeetingStatus,
       endTime: new Date().toISOString(),
+      surveyResults,
     };
     updateCurrentMeetingState(finalMeeting);
     setLastMeetingSummary(finalMeeting);
@@ -295,11 +340,47 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setSaveStatus('saved');
       })
       .catch((e) => {
-        console.error(`Failed to delete meeting ${id}`, e);
         setSaveStatus('error');
-        // No need to re-throw as non-blocking handles the permission error emission
+        // The non-blocking update will emit the permission error,
+        // so we don't need to re-throw, but we should update local status.
       });
   }, [firestore]);
+
+  const updateCriteria = useCallback(async (criteria: SurveyCriterion[]) => {
+    if (!firestore) throw new Error("Firestore not initialized");
+
+    const batch = writeBatch(firestore);
+    const existingIds = new Set(criteriaFromDb?.map(c => c.id));
+    
+    criteria.forEach(criterion => {
+      let docRef;
+      if (criterion.id && existingIds.has(criterion.id)) {
+        docRef = doc(firestore, 'surveyCriteria', criterion.id);
+        const { id, ...data } = criterion;
+        batch.update(docRef, data);
+        existingIds.delete(id);
+      } else {
+        docRef = doc(collection(firestore, 'surveyCriteria'));
+        const { id, ...data } = criterion;
+        batch.set(docRef, data);
+      }
+    });
+
+    existingIds.forEach(idToDelete => {
+      const docRef = doc(firestore, 'surveyCriteria', idToDelete);
+      batch.delete(docRef);
+    });
+    
+    setSaveStatus('saving');
+    try {
+      await batch.commit();
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+      console.error("Failed to update criteria", e);
+      throw e;
+    }
+  }, [firestore, criteriaFromDb]);
 
 
   const contextValue = useMemo(
@@ -307,6 +388,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       members,
       meetings: completedMeetings,
       currentMeeting,
+      surveyCriteria,
       lastMeetingSummary,
       addMember,
       updateMember,
@@ -317,17 +399,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       resetCurrentMeeting,
       startMeeting,
       endMeeting,
+      completeSurvey,
       clearHistory,
       deleteMeeting,
       isInitialized,
       isLoading,
       updateCurrentMeeting,
       saveStatus,
+      updateCriteria,
     }),
     [
         members, 
         completedMeetings, 
-        currentMeeting, 
+        currentMeeting,
+        surveyCriteria,
         lastMeetingSummary,
         addMember, 
         updateMember, 
@@ -338,12 +423,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         resetCurrentMeeting, 
         startMeeting, 
         endMeeting,
+        completeSurvey,
         clearHistory, 
         deleteMeeting,
         isInitialized,
         isLoading, 
         updateCurrentMeeting,
-        saveStatus
+        saveStatus,
+        updateCriteria
     ]
   );
 

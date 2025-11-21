@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAppContext } from '@/app/context/AppContext';
-import type { Topic, Member, AttendanceRecord } from '@/lib/types';
+import type { Topic, Member, AttendanceRecord, SurveyResult } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { SecretarySuggester } from '@/app/components/SecretarySuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building } from 'lucide-react';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building, Star } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 
 
 export default function MeetingDashboardPage() {
@@ -35,16 +35,19 @@ export default function MeetingDashboardPage() {
     resetCurrentMeeting,
     startMeeting,
     endMeeting,
+    completeSurvey,
     isInitialized,
     lastMeetingSummary,
     isLoading,
-    saveStatus
+    saveStatus,
+    surveyCriteria
   } = useAppContext();
 
   const [newTopicTitle, setNewTopicTitle] = useState('');
   const [newTopicDuration, setNewTopicDuration] = useState(5);
   const [newTopicPresenterId, setNewTopicPresenterId] = useState<string | undefined>();
-  
+  const [surveyScores, setSurveyScores] = useState<Record<string, 0 | 1 | 2>>({});
+
   const lastCompletedMeeting = useMemo(() => {
     const completed = meetings
       .filter(m => m.status === 'COMPLETED')
@@ -130,6 +133,14 @@ export default function MeetingDashboardPage() {
         return record;
     }) || [];
     updateCurrentMeeting({ attendance: newAttendance });
+  };
+
+  const handleSurveySubmit = () => {
+    const surveyResults: SurveyResult[] = Object.entries(surveyScores).map(([criterionId, score]) => ({
+      criterionId,
+      score
+    }));
+    completeSurvey(surveyResults);
   };
   
   const presenter = members.find(m => m.id === presenterId);
@@ -389,13 +400,47 @@ export default function MeetingDashboardPage() {
       </Card>
 
       <div className="flex justify-end">
-        <Button variant="default" onClick={endMeeting} disabled={agenda.some(t => t.status !== 'completed')}>
+        <Button variant="default" onClick={() => endMeeting([])} disabled={agenda.some(t => t.status !== 'completed')}>
           <Check className="mr-2" /> Finalizar Reunión
         </Button>
       </div>
     </div>
   );
   
+  const renderSurvey = () => (
+    <Card className="max-w-3xl mx-auto shadow-lg">
+      <CardHeader>
+        <CardTitle className="font-headline text-2xl flex items-center gap-2"><Star /> Cuestionario de Eficiencia</CardTitle>
+        <CardDescription>Puntúa la reunión del 0 (mal) al 2 (excelente) en los siguientes criterios.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {surveyCriteria.map(criterion => (
+          <div key={criterion.id} className="space-y-3">
+            <div className="flex justify-between items-center">
+              <Label htmlFor={`slider-${criterion.id}`}>{criterion.name}</Label>
+              <span className="font-bold w-12 text-center text-lg">{surveyScores[criterion.id] ?? 0}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Slider
+                id={`slider-${criterion.id}`}
+                min={0}
+                max={2}
+                step={1}
+                value={[surveyScores[criterion.id] ?? 0]}
+                onValueChange={([value]) => setSurveyScores(prev => ({ ...prev, [criterion.id]: value as 0 | 1 | 2 }))}
+              />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+      <CardFooter className="justify-end">
+        <Button onClick={handleSurveySubmit}>
+          Finalizar y Ver Resumen <ArrowRight className="ml-2" />
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+
   const renderSummary = () => {
     if (!lastMeetingSummary) return null;
     const summaryPresenter = members.find(m => m.id === lastMeetingSummary.presenterId);
@@ -435,6 +480,7 @@ export default function MeetingDashboardPage() {
     switch (meetingStatus) {
         case 'SETUP': return renderSetup();
         case 'IN_PROGRESS': return renderInProgress();
+        case 'SURVEY': return renderSurvey();
         case 'COMPLETED': return renderSummary();
         default: return <p>Cargando reunión...</p>;
       }

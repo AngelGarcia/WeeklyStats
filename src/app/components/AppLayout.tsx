@@ -1,14 +1,25 @@
 "use client";
 import React from 'react';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { Home, Users, History } from "lucide-react";
+import { Home, Users, History, Settings, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { Logo } from "@/components/icons";
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useUser } from '@/firebase';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user } = useUser();
 
   return (
     <SidebarProvider>
@@ -47,16 +58,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/settings')} tooltip="Configuración">
+                <Link href="/settings">
+                  <Settings />
+                  <span>Configuración</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <header className="flex items-center gap-4 border-b bg-background/50 backdrop-blur-sm p-2 md:hidden">
-            <SidebarTrigger/>
-            <Link href="/" className="flex items-center gap-2 font-bold font-headline">
-                <Logo />
-                ReunionStats
-            </Link>
+        <header className="flex items-center justify-between gap-4 border-b bg-background/50 backdrop-blur-sm p-2">
+            <div className="flex items-center gap-4">
+                <SidebarTrigger className="md:hidden"/>
+                <Link href="/" className="hidden md:flex items-center gap-2 font-bold font-headline">
+                    <Logo />
+                    ReunionStats
+                </Link>
+            </div>
         </header>
         {children}
       </SidebarInset>

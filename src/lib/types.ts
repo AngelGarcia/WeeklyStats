@@ -24,6 +24,17 @@ export type AttendanceRecord = {
   location?: 'physical' | 'online';
 }
 
+export type SurveyCriterion = {
+  id: string;
+  name: string;
+  weight: number; // Percentage (e.g., 20)
+};
+
+export type SurveyResult = {
+  criterionId: string;
+  score: 0 | 1 | 2;
+}
+
 export type Meeting = {
   id: string;
   date: string; // ISO string
@@ -35,9 +46,10 @@ export type Meeting = {
   secretaryId: string | null;
   agenda: Topic[];
   attendance?: AttendanceRecord[];
+  surveyResults?: SurveyResult[];
 };
 
-export type MeetingStatus = "SETUP" | "IN_PROGRESS" | "SUMMARY" | "COMPLETED";
+export type MeetingStatus = "SETUP" | "IN_PROGRESS" | "SURVEY" | "COMPLETED";
 
 export type CurrentMeetingState = {
   status: MeetingStatus;

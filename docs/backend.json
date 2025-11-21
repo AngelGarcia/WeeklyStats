@@ -62,6 +62,13 @@
           "items": {
             "$ref": "#/backend/entities/AttendanceRecord"
           }
+        },
+        "surveyResults": {
+            "type": "array",
+            "description": "List of survey results for the meeting.",
+            "items": {
+                "$ref": "#/backend/entities/SurveyResult"
+            }
         }
       },
       "required": [
@@ -140,6 +147,29 @@
         "memberId",
         "status"
       ]
+    },
+    "SurveyCriterion": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "SurveyCriterion",
+        "type": "object",
+        "description": "Represents a criterion for the meeting efficiency survey.",
+        "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "weight": { "type": "number" }
+        },
+        "required": ["id", "name", "weight"]
+    },
+    "SurveyResult": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "SurveyResult",
+        "type": "object",
+        "description": "Represents the score for a specific survey criterion in a meeting.",
+        "properties": {
+            "criterionId": { "type": "string" },
+            "score": { "type": "number" }
+        },
+        "required": ["criterionId", "score"]
     }
   },
   "auth": {
@@ -201,6 +231,20 @@
             }
           ]
         }
+      },
+      {
+          "path": "/surveyCriteria/{criterionId}",
+          "definition": {
+              "entityName": "SurveyCriterion",
+              "schema": { "$ref": "#/backend/entities/SurveyCriterion" },
+              "description": "Stores the configurable criteria for the post-meeting survey.",
+              "params": [
+                  {
+                      "name": "criterionId",
+                      "description": "The unique identifier of the survey criterion."
+                  }
+              ]
+          }
       },
       {
         "path": "/roles_admin/{userId}",

@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Laptop, Building } from 'lucide-react';
+import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Laptop, Building, Star, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,11 +23,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { AttendanceRecord, Meeting } from '@/lib/types';
+import type { AttendanceRecord, Meeting, SurveyResult } from '@/lib/types';
+import { Progress } from '@/components/ui/progress';
 
 
 export default function HistoryPage() {
-  const { meetings, members, isInitialized, clearHistory, deleteMeeting } = useAppContext();
+  const { meetings, members, isInitialized, clearHistory, deleteMeeting, surveyCriteria } = useAppContext();
 
   const sortedMeetings = useMemo(() => {
     if (!meetings) return [];
@@ -62,6 +63,28 @@ export default function HistoryPage() {
     if (!attendance) return '0/0';
     const present = attendance.filter(a => a.status === 'present').length;
     return `${present}/${attendance.length}`;
+  };
+
+  const calculateEfficiencyScore = (surveyResults: SurveyResult[] | undefined) => {
+    if (!surveyResults || !surveyCriteria || surveyCriteria.length === 0) return 0;
+    
+    let totalScore = 0;
+    let totalWeight = 0;
+
+    surveyResults.forEach(result => {
+      const criterion = surveyCriteria.find(c => c.id === result.criterionId);
+      if (criterion) {
+        // Normalize score from 0-2 to 0-100 scale, then apply weight
+        totalScore += (result.score / 2) * criterion.weight;
+        totalWeight += criterion.weight;
+      }
+    });
+
+    if (totalWeight === 0) return 0;
+
+    // Adjust score to be out of 100
+    const finalScore = (totalScore / totalWeight) * 100;
+    return Math.round(finalScore);
   };
 
   return (
@@ -104,6 +127,7 @@ export default function HistoryPage() {
               const secretary = members.find(m => m.id === meeting.secretaryId);
               const totalDuration = meeting.agenda.reduce((acc, topic) => acc + topic.actualDuration, 0);
               const punctuality = getPunctuality(meeting);
+              const efficiencyScore = calculateEfficiencyScore(meeting.surveyResults);
 
               return (
                 <Card key={meeting.id} className="flex flex-col relative">
@@ -191,6 +215,15 @@ export default function HistoryPage() {
                             </div>
                         </div>
                     </div>
+                    {efficiencyScore > 0 && (
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2 text-sm font-semibold"><Star className="w-4 h-4"/> Puntuación de Eficiencia</Label>
+                            <div className="flex items-center gap-2">
+                                <Progress value={efficiencyScore} />
+                                <span className="font-bold text-lg">{efficiencyScore}%</span>
+                            </div>
+                        </div>
+                    )}
                     <div>
                         <Accordion type="single" collapsible className="w-full -mx-1">
                              <AccordionItem value="asistencia">
@@ -258,6 +291,32 @@ export default function HistoryPage() {
                                     </ScrollArea>
                                 </AccordionContent>
                             </AccordionItem>
+                             {meeting.surveyResults && meeting.surveyResults.length > 0 && (
+                                <AccordionItem value="efficiency">
+                                    <AccordionTrigger className="text-sm font-semibold px-1">Detalle de Eficiencia</AccordionTrigger>
+                                    <AccordionContent className="text-xs text-muted-foreground space-y-2">
+                                        <ScrollArea className="h-32">
+                                            <div className="space-y-3 pr-4">
+                                            {meeting.surveyResults.map(result => {
+                                                const criterion = surveyCriteria.find(c => c.id === result.criterionId);
+                                                if (!criterion) return null;
+                                                const scoreColor = result.score === 2 ? 'text-green-500' : result.score === 1 ? 'text-yellow-500' : 'text-red-500';
+                                                const ScoreIcon = result.score === 2 ? TrendingUp : result.score === 1 ? User : TrendingDown;
+                                                return (
+                                                    <div key={result.criterionId} className="flex items-center justify-between">
+                                                        <span>{criterion.name}</span>
+                                                        <div className={`flex items-center gap-1 font-bold ${scoreColor}`}>
+                                                            <ScoreIcon className="w-4 h-4" />
+                                                            <span>{result.score}/2</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            </div>
+                                        </ScrollArea>
+                                    </AccordionContent>
+                                </AccordionItem>
+                             )}
                         </Accordion>
                     </div>
                   </CardContent>
