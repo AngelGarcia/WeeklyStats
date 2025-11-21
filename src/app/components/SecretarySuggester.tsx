@@ -26,6 +26,12 @@ export function SecretarySuggester({ members, presenterId, onSelectSecretary }: 
     setSuggestion(null);
 
     const eligibleMembers = members.filter(m => m.id !== presenterId);
+    
+    if (eligibleMembers.length === 0) {
+      setError('No hay miembros elegibles para ser secretario.');
+      setIsLoading(false);
+      return;
+    }
 
     const input = {
       members: eligibleMembers.map(m => ({
@@ -33,6 +39,7 @@ export function SecretarySuggester({ members, presenterId, onSelectSecretary }: 
         presenterCount: m.presenterCount,
         volunteerCount: m.volunteerCount,
       })),
+      memberNames: eligibleMembers.map(m => m.name),
     };
 
     try {

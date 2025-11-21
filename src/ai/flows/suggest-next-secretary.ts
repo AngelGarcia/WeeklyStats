@@ -21,6 +21,7 @@ const SuggestNextSecretaryInputSchema = z.object({
       })
     )
     .describe('List of team members and their past presenter and volunteer counts.'),
+  memberNames: z.array(z.string()).describe('A list of eligible member names for the tool to choose from.'),
 });
 export type SuggestNextSecretaryInput = z.infer<typeof SuggestNextSecretaryInputSchema>;
 
@@ -30,36 +31,45 @@ const SuggestNextSecretaryOutputSchema = z.object({
 });
 export type SuggestNextSecretaryOutput = z.infer<typeof SuggestNextSecretaryOutputSchema>;
 
+
 export async function suggestNextSecretary(input: SuggestNextSecretaryInput): Promise<SuggestNextSecretaryOutput> {
-  return suggestNextSecretaryFlow(input);
-}
+  if (input.memberNames.length === 0) {
+    throw new Error("Cannot suggest a secretary from an empty list of members.");
+  }
 
-const suggestNextSecretaryPrompt = ai.definePrompt({
-  name: 'suggestNextSecretaryPrompt',
-  input: {schema: SuggestNextSecretaryInputSchema},
-  output: {schema: SuggestNextSecretaryOutputSchema},
-  prompt: `You are a meeting facilitator. Given the following list of team members and their past presenter and volunteer counts, suggest the next secretary for the meeting, ensuring fairness.
+  // Dynamically create the tool schema with the provided member names
+  const chooseSecretaryTool = ai.defineTool(
+    {
+      name: 'chooseSecretary',
+      description: 'Choose the next secretary from the provided list of names.',
+      inputSchema: z.object({
+        suggestedSecretary: z.enum(input.memberNames as [string, ...string[]]).describe("The name of the team member to select as the next secretary."),
+        reason: z.string().describe("The justification for selecting this member, based on fairness."),
+      }),
+      outputSchema: SuggestNextSecretaryOutputSchema,
+    },
+    async (input) => input
+  );
+  
+  const result = await ai.generate({
+    prompt: `You are a meeting facilitator. Given the following list of team members and their past presenter and volunteer counts, suggest the next secretary for the meeting, ensuring fairness.
 
-Members: {{{members}}}
+Members: ${JSON.stringify(input.members)}
 
 Consider the following factors:
 - Prioritize members who have the fewest presenter and volunteer counts.
 - If there are members with the same counts, randomly select one of them.
-- Provide a brief reason for your suggestion.
 
-Output the suggested secretary's name and the reason for your choice.
+Use the chooseSecretary tool to provide your answer.
+`,
+    tools: [chooseSecretaryTool],
+    toolChoice: 'required',
+  });
 
-In JSON format.`, // Asking for JSON format is important for structured output and type safety
-});
-
-const suggestNextSecretaryFlow = ai.defineFlow(
-  {
-    name: 'suggestNextSecretaryFlow',
-    inputSchema: SuggestNextSecretaryInputSchema,
-    outputSchema: SuggestNextSecretaryOutputSchema,
-  },
-  async input => {
-    const {output} = await suggestNextSecretaryPrompt(input);
-    return output!;
+  const toolRequest = result.toolRequest();
+  if (!toolRequest) {
+    throw new Error("The model did not return a tool request as expected.");
   }
-);
+  
+  return toolRequest.tool.input;
+}
