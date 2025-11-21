@@ -107,6 +107,66 @@
       "description": "Avatar for a team member",
       "imageUrl": "https://robohash.org/user4.png?set=set1",
       "imageHint": "robot avatar"
+    },
+    {
+      "id": "19",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/femalerobot1.png?set=set1",
+      "imageHint": "robot avatar"
+    },
+    {
+      "id": "20",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/femalerobot2.png?set=set1",
+      "imageHint": "robot avatar"
+    },
+    {
+      "id": "21",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/cutemonster.png?set=set2",
+      "imageHint": "monster avatar"
+    },
+    {
+      "id": "22",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/fluffycat.png?set=set4",
+      "imageHint": "cat avatar"
+    },
+    {
+      "id": "23",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/shinyrobot.png?set=set1",
+      "imageHint": "robot avatar"
+    },
+    {
+      "id": "24",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/smartmonster.png?set=set2",
+      "imageHint": "monster avatar"
+    },
+    {
+      "id": "25",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/prettykitty.png?set=set4",
+      "imageHint": "cat avatar"
+    },
+    {
+      "id": "26",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/ladybot.png?set=set1",
+      "imageHint": "robot avatar"
+    },
+    {
+      "id": "27",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/gentlemanbot.png?set=set1",
+      "imageHint": "robot avatar"
+    },
+    {
+      "id": "28",
+      "description": "Avatar for a team member",
+      "imageUrl": "https://robohash.org/coolmonster.png?set=set2",
+      "imageHint": "monster avatar"
     }
   ]
 }
