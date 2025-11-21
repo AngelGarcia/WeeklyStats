@@ -16,6 +16,12 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useFirebase, useUser, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
+import { 
+  addDocumentNonBlocking, 
+  deleteDocumentNonBlocking, 
+  setDocumentNonBlocking 
+} from '@/firebase/non-blocking-updates';
+
 
 const getInitialTime = () => {
   const now = new Date();
@@ -160,8 +166,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [meetings]);
 
-  const addMember = useCallback(async (memberData: Omit<Member, 'id' | 'avatarUrl' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
-    if (!firestore) return;
+  const addMember = useCallback((memberData: Omit<Member, 'id' | 'avatarUrl' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
+    if (!firestore || !membersCollection) return;
     const newAvatarIndex = state.members.length % PlaceHolderImages.length;
     const newMember: Omit<Member, 'id'> = {
       ...memberData,
@@ -170,18 +176,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       volunteerCount: 0,
       topicPresenterCount: 0,
     };
-    await addDoc(collection(firestore, 'members'), newMember);
-  }, [firestore, state.members.length]);
+    addDocumentNonBlocking(membersCollection, newMember);
+  }, [firestore, membersCollection, state.members.length]);
 
-  const updateMember = useCallback(async (member: Member) => {
+  const updateMember = useCallback((member: Member) => {
     if (!firestore) return;
     const { id, ...memberData } = member;
-    await setDoc(doc(firestore, 'members', id), memberData, { merge: true });
+    const memberRef = doc(firestore, 'members', id);
+    setDocumentNonBlocking(memberRef, memberData, { merge: true });
   }, [firestore]);
 
-  const deleteMember = useCallback(async (id: string) => {
+  const deleteMember = useCallback((id: string) => {
     if (!firestore) return;
-    await deleteDoc(doc(firestore, 'members', id));
+    const memberRef = doc(firestore, 'members', id);
+    deleteDocumentNonBlocking(memberRef);
   }, [firestore]);
 
   const addTopic = useCallback((topicData: Omit<Topic, 'id' | 'actualDuration' | 'status'>) => {
@@ -233,7 +241,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [state.currentMeeting]);
 
   const endMeeting = useCallback(async () => {
-    if (!firestore) return;
+    if (!firestore || !meetingsCollection) return;
     const { presenterId, secretaryId, agenda, plannedStartTime, actualStartTime } = state.currentMeeting;
     if (!presenterId || !secretaryId || !plannedStartTime || !actualStartTime) return;
 
@@ -250,7 +258,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       agenda,
     };
 
-    await addDoc(collection(firestore, 'meetings'), newMeeting);
+    addDocumentNonBlocking(meetingsCollection, newMeeting);
 
     if (presenter) {
         updateMember({ ...presenter, presenterCount: presenter.presenterCount + 1 });
@@ -280,7 +288,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         lastMeetingSummary: { presenter, secretary, duration: totalDuration },
       },
     });
-  }, [state.currentMeeting, state.members, firestore, updateMember]);
+  }, [state.currentMeeting, state.members, firestore, meetingsCollection, updateMember]);
 
   const contextValue = useMemo(
     () => ({
@@ -298,7 +306,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       updateCurrentMeeting,
       setCurrentMeetingStatus,
     }),
-    [state, isInitialized, startMeeting, endMeeting, addMember, updateMember, deleteMember, addTopic, updateTopic, removeTopic]
+    [state, isInitialized, startMeeting, endMeeting, addMember, updateMember, deleteMember, addTopic, updateTopic, removeTopic, resetCurrentMeeting]
   );
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
@@ -311,5 +319,3 @@ export const useAppContext = () => {
     }
     return context;
 };
-
-    
