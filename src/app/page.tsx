@@ -11,7 +11,7 @@ import { useAppContext } from '@/app/context/AppContext';
 import type { Topic, Member } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { SecretarySuggester } from '@/app/components/SecretarySuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon } from 'lucide-react';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -35,7 +35,8 @@ export default function MeetingDashboardPage() {
     endMeeting,
     isInitialized,
     lastMeetingSummary,
-    isLoading
+    isLoading,
+    saveStatus
   } = useAppContext();
 
   const [newTopicTitle, setNewTopicTitle] = useState('');
@@ -105,6 +106,19 @@ export default function MeetingDashboardPage() {
   const secretary = members.find(m => m.id === secretaryId);
   
   const availableMembers = members.filter(m => m.id !== presenterId);
+
+  const SaveStatusIndicator = () => {
+    switch (saveStatus) {
+      case 'saving':
+        return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="animate-spin w-4 h-4" />Guardando...</div>;
+      case 'saved':
+        return <div className="flex items-center gap-2 text-sm text-green-600"><Check className="w-4 h-4" />Guardado</div>;
+      case 'error':
+        return <div className="flex items-center gap-2 text-sm text-destructive"><AlertCircle className="w-4 h-4" />Error al guardar</div>;
+      default:
+        return null;
+    }
+  };
 
   const renderSetup = () => (
     <Card className="max-w-3xl mx-auto shadow-lg">
@@ -239,8 +253,9 @@ export default function MeetingDashboardPage() {
           </div>
         </div>
       </CardContent>
-      <CardFooter>
-        <Button onClick={startMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto ml-auto">
+      <CardFooter className="justify-between items-center">
+        <SaveStatusIndicator />
+        <Button onClick={startMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
           <Play className="mr-2" /> Iniciar Reunión
         </Button>
       </CardFooter>

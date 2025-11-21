@@ -11,15 +11,18 @@ import React, {
 } from 'react';
 import type { Member, Meeting, Topic, MeetingStatus } from '@/lib/types';
 import { useFirebase, useUser, useMemoFirebase } from '@/firebase/provider';
-import { collection, doc, query, where, limit, orderBy } from 'firebase/firestore';
+import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { parseISO } from 'date-fns';
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 type AppState = {
   members: Member[];
   meetings: Meeting[]; // Completed meetings
   currentMeeting: Meeting | null;
+  saveStatus: SaveStatus;
 };
 
 type AppContextType = AppState & {
@@ -60,6 +63,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentMeeting, setCurrentMeeting] = useState<Meeting | null>(null);
   const [lastMeetingSummary, setLastMeetingSummary] = useState<Meeting | null>(null);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   
   const isLoading = isUserLoading || membersLoading || meetingsLoading || isCreatingMeeting;
   const isInitialized = !isLoading;
@@ -91,7 +95,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const createNewMeeting = useCallback(async () => {
     if (!firestore || isCreatingMeeting) return;
     setIsCreatingMeeting(true);
-
+    setSaveStatus('saving');
     const newMeeting: Omit<Meeting, 'id'> = {
         date: new Date().toISOString(),
         status: 'SETUP',
@@ -102,8 +106,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         const meetingsCollectionRef = collection(firestore, 'meetings');
         await addDocumentNonBlocking(meetingsCollectionRef, newMeeting);
+        setSaveStatus('saved');
     } catch(e) {
-        console.error("Failed to create a new meeting", e)
+        console.error("Failed to create a new meeting", e);
+        setSaveStatus('error');
     } finally {
        setIsCreatingMeeting(false);
     }
@@ -113,8 +119,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // --- Member mutations ---
   const addMember = useCallback((memberData: Omit<Member, 'id' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
     if (!firestore || !membersCollection) return;
-    const currentMembers = members || [];
-    const newAvatarIndex = currentMembers.length % 28; // Use 28 as we have 28 avatars
     const newMember: Omit<Member, 'id'> = {
       ...memberData,
       presenterCount: 0,
@@ -122,7 +126,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       topicPresenterCount: 0,
     };
     addDocumentNonBlocking(membersCollection, newMember);
-  }, [firestore, membersCollection, members]);
+  }, [firestore, membersCollection]);
 
   const updateMember = useCallback((member: Member) => {
     if (!firestore) return;
@@ -141,9 +145,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // --- Current meeting mutations ---
   const updateCurrentMeetingState = useCallback((updatedMeeting: Meeting) => {
     if (!firestore) return;
+    setSaveStatus('saving');
     const meetingRef = doc(firestore, 'meetings', updatedMeeting.id);
     const {id, ...meetingData} = updatedMeeting;
-    setDocumentNonBlocking(meetingRef, meetingData, { merge: true });
+    setDocumentNonBlocking(meetingRef, meetingData, { merge: true })
+      .then(() => setSaveStatus('saved'))
+      .catch(() => setSaveStatus('error'));
   }, [firestore]);
 
   const updateCurrentMeeting = (payload: Partial<Meeting>) => {
@@ -180,6 +187,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
   const resetCurrentMeeting = async () => {
     setLastMeetingSummary(null);
+    setSaveStatus('idle');
     await createNewMeeting();
   };
 
@@ -255,6 +263,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       isInitialized,
       isLoading,
       updateCurrentMeeting,
+      saveStatus,
     }),
     [
         members, 
@@ -272,7 +281,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         endMeeting, 
         isInitialized,
         isLoading, 
-        updateCurrentMeeting
+        updateCurrentMeeting,
+        saveStatus
     ]
   );
 
