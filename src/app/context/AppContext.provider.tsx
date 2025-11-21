@@ -116,20 +116,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (allMeetings) {
-      const setupMeeting = allMeetings.find(m => m.status === 'SETUP' || m.status === 'SURVEY');
-      const completed = allMeetings.filter(m => m.status === 'COMPLETED' || m.status === 'IN_PROGRESS'); // show in progress in history too
+      const activeMeeting = allMeetings.find(m => m.status === 'SETUP' || m.status === 'IN_PROGRESS' || m.status === 'SURVEY');
+      const completed = allMeetings.filter(m => m.status === 'COMPLETED');
       
-      if (setupMeeting) {
+      if (activeMeeting) {
         // Ensure attendance is initialized for any new members
-        const currentMemberIds = new Set(setupMeeting.attendance?.map(a => a.memberId) || []);
+        const currentMemberIds = new Set(activeMeeting.attendance?.map(a => a.memberId) || []);
         if (members.length > 0 && currentMemberIds.size !== members.length) {
             const newAttendance: AttendanceRecord[] = members.map(member => {
-                const existingRecord = setupMeeting.attendance?.find(a => a.memberId === member.id);
+                const existingRecord = activeMeeting.attendance?.find(a => a.memberId === member.id);
                 return existingRecord || { memberId: member.id, status: 'absent' };
             });
-            setCurrentMeeting({...setupMeeting, attendance: newAttendance});
+            setCurrentMeeting({...activeMeeting, attendance: newAttendance});
         } else {
-            setCurrentMeeting(setupMeeting);
+            setCurrentMeeting(activeMeeting);
         }
       } else {
         setCurrentMeeting(null);
@@ -137,7 +137,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       setCompletedMeetings(completed);
 
-      if(!setupMeeting && !isCreatingMeeting && isInitialized && members.length > 0) {
+      if(!activeMeeting && !isCreatingMeeting && isInitialized && members.length > 0) {
         createNewMeeting();
       }
 
