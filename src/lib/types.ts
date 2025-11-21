@@ -21,15 +21,16 @@ export type Topic = {
 export type Meeting = {
   id: string;
   date: string; // ISO string
-  plannedStartTime: string; // ISO string
-  actualStartTime: string; // ISO string
-  endTime: string; // ISO string
-  presenterId: string;
-  secretaryId: string;
+  status: MeetingStatus;
+  plannedStartTime?: string; // ISO string
+  actualStartTime?: string; // ISO string
+  endTime?: string; // ISO string
+  presenterId: string | null;
+  secretaryId: string | null;
   agenda: Topic[];
 };
 
-export type MeetingStatus = "SETUP" | "IN_PROGRESS" | "SUMMARY";
+export type MeetingStatus = "SETUP" | "IN_PROGRESS" | "SUMMARY" | "COMPLETED";
 
 export type CurrentMeetingState = {
   status: MeetingStatus;

@@ -2,7 +2,6 @@
 
 import React, {
   createContext,
-  useReducer,
   useEffect,
   useState,
   ReactNode,
@@ -10,108 +9,22 @@ import React, {
   useCallback,
   useContext,
 } from 'react';
-import type { Member, Meeting, Topic, CurrentMeetingState, MeetingStatus } from '@/lib/types';
-import { initialMemberNames } from '@/lib/data';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import type { Member, Meeting, Topic, MeetingStatus } from '@/lib/types';
 import { useFirebase, useUser, useMemoFirebase } from '@/firebase/provider';
-import { collection, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, query, where, limit, orderBy } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { 
-  addDocumentNonBlocking, 
-  deleteDocumentNonBlocking, 
-  setDocumentNonBlocking 
-} from '@/firebase/non-blocking-updates';
-
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { parseISO } from 'date-fns';
 
 const getInitialTime = () => {
   const now = new Date();
   return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 };
 
-const initialCurrentMeetingState: CurrentMeetingState = {
-  status: 'SETUP',
-  presenterId: null,
-  secretaryId: null,
-  agenda: [],
-  meetingDate: undefined,
-  meetingTime: getInitialTime(),
-  plannedStartTime: null,
-  actualStartTime: null,
-  lastMeetingSummary: null,
-};
-
 type AppState = {
   members: Member[];
-  meetings: Meeting[];
-  currentMeeting: CurrentMeetingState;
-};
-
-type Action =
-  | { type: 'SET_MEMBERS'; payload: Member[] }
-  | { type: 'SET_MEETINGS'; payload: Meeting[] }
-  | { type: 'UPDATE_CURRENT_MEETING'; payload: Partial<CurrentMeetingState> }
-  | { type: 'SET_CURRENT_MEETING_STATUS'; payload: MeetingStatus }
-  | { type: 'ADD_TOPIC'; payload: Topic }
-  | { type: 'UPDATE_TOPIC'; payload: Topic }
-  | { type: 'REMOVE_TOPIC'; payload: string }
-  | { type: 'RESET_CURRENT_MEETING' };
-
-const appReducer = (state: AppState, action: Action): AppState => {
-  switch (action.type) {
-    case 'SET_MEMBERS':
-      return { ...state, members: action.payload };
-    case 'SET_MEETINGS':
-      return { ...state, meetings: action.payload };
-    case 'UPDATE_CURRENT_MEETING':
-      return {
-        ...state,
-        currentMeeting: { ...state.currentMeeting, ...action.payload },
-      };
-    case 'SET_CURRENT_MEETING_STATUS':
-      return {
-        ...state,
-        currentMeeting: { ...state.currentMeeting, status: action.payload },
-      };
-    case 'ADD_TOPIC':
-      return {
-        ...state,
-        currentMeeting: {
-          ...state.currentMeeting,
-          agenda: [...state.currentMeeting.agenda, action.payload],
-        },
-      };
-    case 'UPDATE_TOPIC':
-      return {
-        ...state,
-        currentMeeting: {
-          ...state.currentMeeting,
-          agenda: state.currentMeeting.agenda.map((t) => (t.id === action.payload.id ? action.payload : t)),
-        },
-      };
-    case 'REMOVE_TOPIC':
-      return {
-        ...state,
-        currentMeeting: {
-          ...state.currentMeeting,
-          agenda: state.currentMeeting.agenda.filter((t) => t.id !== action.payload),
-        },
-      };
-    case 'RESET_CURRENT_MEETING':
-      const now = new Date();
-      return {
-        ...state,
-        currentMeeting: {
-          ...initialCurrentMeetingState,
-          meetingDate: now,
-          meetingTime: `${now.getHours().toString().padStart(2, '0')}:${now
-            .getHours()
-            .toString()
-            .padStart(2, '0')}`,
-        },
-      };
-    default:
-      return state;
-  }
+  meetings: Meeting[]; // Completed meetings
+  currentMeeting: Meeting | null;
 };
 
 type AppContextType = AppState & {
@@ -121,51 +34,88 @@ type AppContextType = AppState & {
   addTopic: (topic: Omit<Topic, 'id' | 'actualDuration' | 'status'>) => void;
   updateTopic: (topic: Topic) => void;
   removeTopic: (id: string) => void;
-  resetCurrentMeeting: () => void;
+  resetCurrentMeeting: () => Promise<void>;
   startMeeting: () => void;
   endMeeting: () => void;
   isInitialized: boolean;
-  updateCurrentMeeting: (payload: Partial<CurrentMeetingState>) => void;
-  setCurrentMeetingStatus: (status: MeetingStatus) => void;
+  updateCurrentMeeting: (payload: Partial<Meeting>) => void;
+  lastMeetingSummary: Meeting | null;
+  isLoading: boolean;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const { firestore, auth } = useFirebase();
-  const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
+  const { isUserLoading } = useUser();
 
+  // --- Data fetching ---
   const membersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'members') : null, [firestore]);
-  const meetingsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'meetings') : null, [firestore]);
-
   const { data: membersFromDb, isLoading: membersLoading } = useCollection<Member>(membersCollection);
-  const { data: meetingsFromDb, isLoading: meetingsLoading } = useCollection<Meeting>(meetingsCollection);
 
-  const getInitialState = (): AppState => ({
-    members: membersFromDb || [],
-    meetings: meetingsFromDb || [],
-    currentMeeting: {
-      ...initialCurrentMeetingState,
-      meetingDate: new Date(),
-      meetingTime: getInitialTime(),
-    },
-  });
+  const meetingsQuery = useMemoFirebase(() => firestore 
+    ? query(collection(firestore, 'meetings'), orderBy('date', 'desc'))
+    : null, 
+  [firestore]);
+  const { data: allMeetings, isLoading: meetingsLoading } = useCollection<Meeting>(meetingsQuery);
 
-  const [state, dispatch] = useReducer(appReducer, getInitialState());
-  const isInitialized = !isUserLoading && !membersLoading && !meetingsLoading;
+  // --- State ---
+  const [members, setMembers] = useState<Member[]>([]);
+  const [completedMeetings, setCompletedMeetings] = useState<Meeting[]>([]);
+  const [currentMeeting, setCurrentMeeting] = useState<Meeting | null>(null);
+  const [lastMeetingSummary, setLastMeetingSummary] = useState<Meeting | null>(null);
+  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  
+  const isLoading = isUserLoading || membersLoading || meetingsLoading || isCreatingMeeting;
+  const isInitialized = !isLoading;
 
+  // --- Effects to sync data from DB to state ---
   useEffect(() => {
     if (membersFromDb) {
-      dispatch({ type: 'SET_MEMBERS', payload: membersFromDb });
+      setMembers(membersFromDb);
     }
   }, [membersFromDb]);
 
   useEffect(() => {
-    if (meetingsFromDb) {
-      dispatch({ type: 'SET_MEETINGS', payload: meetingsFromDb });
-    }
-  }, [meetingsFromDb]);
+    if (allMeetings) {
+      const setupMeeting = allMeetings.find(m => m.status === 'SETUP');
+      const completed = allMeetings.filter(m => m.status === 'COMPLETED' || m.status === 'IN_PROGRESS'); // show in progress in history too
+      
+      setCurrentMeeting(setupMeeting || null);
+      setCompletedMeetings(completed);
 
+      if(!setupMeeting && !isCreatingMeeting && isInitialized) {
+        createNewMeeting();
+      }
+
+    } else if (isInitialized && !isCreatingMeeting) {
+       createNewMeeting();
+    }
+  }, [allMeetings, isInitialized, isCreatingMeeting]);
+
+  const createNewMeeting = useCallback(async () => {
+    if (!firestore || isCreatingMeeting) return;
+    setIsCreatingMeeting(true);
+
+    const newMeeting: Omit<Meeting, 'id'> = {
+        date: new Date().toISOString(),
+        status: 'SETUP',
+        presenterId: null,
+        secretaryId: null,
+        agenda: [],
+    };
+    try {
+        const meetingsCollectionRef = collection(firestore, 'meetings');
+        await addDocumentNonBlocking(meetingsCollectionRef, newMeeting);
+    } catch(e) {
+        console.error("Failed to create a new meeting", e)
+    } finally {
+       setIsCreatingMeeting(false);
+    }
+}, [firestore, isCreatingMeeting]);
+
+
+  // --- Member mutations ---
   const addMember = useCallback((memberData: Omit<Member, 'id' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
     if (!firestore || !membersCollection) return;
     const newMember: Omit<Member, 'id'> = {
@@ -190,107 +140,116 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteDocumentNonBlocking(memberRef);
   }, [firestore]);
 
+
+  // --- Current meeting mutations ---
+  const updateCurrentMeetingState = useCallback((updatedMeeting: Meeting) => {
+    if (!firestore) return;
+    const meetingRef = doc(firestore, 'meetings', updatedMeeting.id);
+    const {id, ...meetingData} = updatedMeeting;
+    setDocumentNonBlocking(meetingRef, meetingData, { merge: true });
+  }, [firestore]);
+
+  const updateCurrentMeeting = (payload: Partial<Meeting>) => {
+    if (currentMeeting) {
+        const updated = { ...currentMeeting, ...payload };
+        setCurrentMeeting(updated); // Optimistic update
+        updateCurrentMeetingState(updated);
+    }
+  };
+
   const addTopic = useCallback((topicData: Omit<Topic, 'id' | 'actualDuration' | 'status'>) => {
+    if (!currentMeeting) return;
     const newTopic: Topic = {
       id: crypto.randomUUID(),
       ...topicData,
       actualDuration: 0,
       status: 'pending',
     };
-    dispatch({ type: 'ADD_TOPIC', payload: newTopic });
-  }, []);
+    const updatedAgenda = [...currentMeeting.agenda, newTopic];
+    updateCurrentMeeting({ agenda: updatedAgenda });
+  }, [currentMeeting, updateCurrentMeeting]);
 
   const updateTopic = useCallback((topic: Topic) => {
-    dispatch({ type: 'UPDATE_TOPIC', payload: topic });
-  }, []);
+    if (!currentMeeting) return;
+    const updatedAgenda = currentMeeting.agenda.map((t) => (t.id === topic.id ? topic : t));
+    updateCurrentMeeting({ agenda: updatedAgenda });
+  }, [currentMeeting, updateCurrentMeeting]);
 
   const removeTopic = useCallback((id: string) => {
-    dispatch({ type: 'REMOVE_TOPIC', payload: id });
-  }, []);
-
-  const updateCurrentMeeting = (payload: Partial<CurrentMeetingState>) => {
-    dispatch({ type: 'UPDATE_CURRENT_MEETING', payload });
-  };
-
-  const setCurrentMeetingStatus = (status: MeetingStatus) => {
-    dispatch({ type: 'SET_CURRENT_MEETING_STATUS', payload: status });
-  };
+    if (!currentMeeting) return;
+    const updatedAgenda = currentMeeting.agenda.filter((t) => t.id !== id);
+    updateCurrentMeeting({ agenda: updatedAgenda });
+  }, [currentMeeting, updateCurrentMeeting]);
   
-  const resetCurrentMeeting = () => {
-    dispatch({ type: 'RESET_CURRENT_MEETING' });
+  const resetCurrentMeeting = async () => {
+    setLastMeetingSummary(null);
+    await createNewMeeting();
   };
 
   const startMeeting = useCallback(() => {
-    const { presenterId, secretaryId, agenda, meetingDate, meetingTime } = state.currentMeeting;
-    if (presenterId && secretaryId && agenda.length > 0 && meetingDate) {
-      const [hours, minutes] = meetingTime.split(':').map(Number);
-      const plannedDate = new Date(meetingDate);
-      plannedDate.setHours(hours, minutes, 0, 0);
+    if (currentMeeting) {
+      const { presenterId, secretaryId, agenda, date } = currentMeeting;
+      
+      const meetingDate = parseISO(date);
+      const [hours, minutes] = getInitialTime().split(':').map(Number); // Assuming we need to define how time is set
+      meetingDate.setHours(hours, minutes, 0, 0);
 
-      dispatch({
-        type: 'UPDATE_CURRENT_MEETING',
-        payload: {
-          plannedStartTime: plannedDate,
-          actualStartTime: new Date(),
-          status: 'IN_PROGRESS',
-        },
+      updateCurrentMeeting({
+        plannedStartTime: meetingDate.toISOString(),
+        actualStartTime: new Date().toISOString(),
+        status: 'IN_PROGRESS',
       });
     }
-  }, [state.currentMeeting]);
+  }, [currentMeeting, updateCurrentMeeting]);
 
   const endMeeting = useCallback(async () => {
-    if (!firestore || !meetingsCollection) return;
-    const { presenterId, secretaryId, agenda, plannedStartTime, actualStartTime } = state.currentMeeting;
-    if (!presenterId || !secretaryId || !plannedStartTime || !actualStartTime) return;
-
-    const presenter = state.members.find((m) => m.id === presenterId);
-    const secretary = state.members.find((m) => m.id === secretaryId);
-
-    const newMeeting: Omit<Meeting, 'id'> = {
-      date: new Date().toISOString(),
-      plannedStartTime: plannedStartTime.toISOString(),
-      actualStartTime: actualStartTime.toISOString(),
+    if (!firestore || !currentMeeting) return;
+    const { presenterId, secretaryId, agenda } = currentMeeting;
+    
+    // Finalize meeting data
+    const finalMeeting = {
+      ...currentMeeting,
+      status: 'COMPLETED' as MeetingStatus,
       endTime: new Date().toISOString(),
-      presenterId,
-      secretaryId,
-      agenda,
     };
-
-    addDocumentNonBlocking(meetingsCollection, newMeeting);
+    updateCurrentMeetingState(finalMeeting);
+    setLastMeetingSummary(finalMeeting);
+    setCurrentMeeting(null); // Clear current meeting so a new one can be created
+    
+    // Update member stats
+    const presenter = members.find((m) => m.id === presenterId);
+    const secretary = members.find((m) => m.id === secretaryId);
 
     if (presenter) {
-        updateMember({ ...presenter, presenterCount: presenter.presenterCount + 1 });
+        updateMember({ ...presenter, presenterCount: (presenter.presenterCount || 0) + 1 });
     }
     if (secretary) {
-        updateMember({ ...secretary, volunteerCount: secretary.volunteerCount + 1 });
+        updateMember({ ...secretary, volunteerCount: (secretary.volunteerCount || 0) + 1 });
     }
 
     const topicCounts = agenda.reduce((acc, topic) => {
-        acc[topic.presenterId] = (acc[topic.presenterId] || 0) + 1;
+        if (topic.presenterId) {
+            acc[topic.presenterId] = (acc[topic.presenterId] || 0) + 1;
+        }
         return acc;
     }, {} as Record<string, number>);
 
-    state.members.forEach(member => {
+    members.forEach(member => {
         if (topicCounts[member.id]) {
             const updatedMember = { ...member, topicPresenterCount: (member.topicPresenterCount || 0) + topicCounts[member.id] };
             updateMember(updatedMember);
         }
     });
 
-    const totalDuration = agenda.reduce((sum, topic) => sum + topic.actualDuration, 0);
+  }, [currentMeeting, members, firestore, updateCurrentMeetingState, updateMember]);
 
-    dispatch({
-      type: 'UPDATE_CURRENT_MEETING',
-      payload: {
-        status: 'SUMMARY',
-        lastMeetingSummary: { presenter, secretary, duration: totalDuration },
-      },
-    });
-  }, [state.currentMeeting, state.members, firestore, meetingsCollection, updateMember]);
 
   const contextValue = useMemo(
     () => ({
-      ...state,
+      members,
+      meetings: completedMeetings,
+      currentMeeting,
+      lastMeetingSummary,
       addMember,
       updateMember,
       deleteMember,
@@ -301,10 +260,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       startMeeting,
       endMeeting,
       isInitialized,
+      isLoading,
       updateCurrentMeeting,
-      setCurrentMeetingStatus,
     }),
-    [state, addMember, updateMember, deleteMember, addTopic, updateTopic, removeTopic, resetCurrentMeeting, startMeeting, endMeeting, isInitialized]
+    [
+        members, 
+        completedMeetings, 
+        currentMeeting, 
+        lastMeetingSummary,
+        addMember, 
+        updateMember, 
+        deleteMember, 
+        addTopic, 
+        updateTopic, 
+        removeTopic, 
+        resetCurrentMeeting, 
+        startMeeting, 
+        endMeeting, 
+        isInitialized,
+        isLoading, 
+        updateCurrentMeeting
+    ]
   );
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;

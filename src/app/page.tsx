@@ -8,11 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useAppContext } from '@/app/context/AppContext';
-import type { Topic } from '@/lib/types';
+import type { Topic, Member } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { SecretarySuggester } from '@/app/components/SecretarySuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User } from 'lucide-react';
-import { format } from 'date-fns';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -33,30 +33,39 @@ export default function MeetingDashboardPage() {
     startMeeting,
     endMeeting,
     isInitialized,
+    lastMeetingSummary,
+    isLoading
   } = useAppContext();
-
-  const {
-    status: meetingStatus,
-    presenterId,
-    secretaryId,
-    agenda,
-    meetingDate,
-    meetingTime,
-    plannedStartTime,
-    actualStartTime,
-    lastMeetingSummary
-  } = currentMeeting;
 
   const [newTopicTitle, setNewTopicTitle] = useState('');
   const [newTopicDuration, setNewTopicDuration] = useState(5);
   const [newTopicPresenterId, setNewTopicPresenterId] = useState<string | undefined>();
   
-  const lastMeeting = useMemo(() => meetings.length > 0 ? meetings[meetings.length - 1] : null, [meetings]);
-  const suggestedPresenterId = useMemo(() => lastMeeting?.secretaryId, [lastMeeting]);
-  
-  if (!isInitialized) {
-    return <div className="flex justify-center items-center h-full"><p>Cargando datos de la aplicación...</p></div>;
+  const lastCompletedMeeting = useMemo(() => {
+    const completed = meetings
+      .filter(m => m.status === 'COMPLETED')
+      .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+    return completed.length > 0 ? completed[0] : null;
+  }, [meetings]);
+
+  const suggestedPresenterId = useMemo(() => lastCompletedMeeting?.secretaryId, [lastCompletedMeeting]);
+
+  if (!isInitialized || isLoading || !currentMeeting) {
+    return <div className="flex justify-center items-center h-full"><p>Cargando datos de la reunión...</p></div>;
   }
+  
+  const {
+    status: meetingStatus,
+    presenterId,
+    secretaryId,
+    agenda,
+    date,
+    plannedStartTime,
+    actualStartTime,
+  } = currentMeeting;
+
+  const meetingDate = date ? parseISO(date) : new Date();
+  const meetingTime = date ? format(parseISO(date), 'HH:mm') : '00:00';
 
   const handleAddTopic = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +84,21 @@ export default function MeetingDashboardPage() {
   const handlePlanNext = () => {
     resetCurrentMeeting();
   };
+
+  const handleDateChange = (newDate: Date | undefined) => {
+    if (!newDate) return;
+    const oldDate = parseISO(date);
+    newDate.setHours(oldDate.getHours());
+    newDate.setMinutes(oldDate.getMinutes());
+    updateCurrentMeeting({ date: newDate.toISOString() });
+  }
+
+  const handleTimeChange = (newTime: string) => {
+    const oldDate = parseISO(date);
+    const [hours, minutes] = newTime.split(':').map(Number);
+    oldDate.setHours(hours, minutes);
+    updateCurrentMeeting({ date: oldDate.toISOString() });
+  }
   
   const presenter = members.find(m => m.id === presenterId);
   const secretary = members.find(m => m.id === secretaryId);
@@ -109,7 +133,7 @@ export default function MeetingDashboardPage() {
                   <Calendar
                     mode="single"
                     selected={meetingDate}
-                    onSelect={(date) => date && updateCurrentMeeting({ meetingDate: date })}
+                    onSelect={handleDateChange}
                     initialFocus
                   />
                 </PopoverContent>
@@ -117,7 +141,7 @@ export default function MeetingDashboardPage() {
               <Input
                   type="time"
                   value={meetingTime}
-                  onChange={(e) => updateCurrentMeeting({ meetingTime: e.target.value })}
+                  onChange={(e) => handleTimeChange(e.target.value)}
                   className="w-[120px]"
               />
             </div>
@@ -202,7 +226,7 @@ export default function MeetingDashboardPage() {
                             <AvatarImage src={topicPresenter.avatarUrl} alt={topicPresenter.name} />
                             <AvatarFallback>{topicPresenter.name.charAt(0)}</AvatarFallback>
                         </Avatar>
-                    ) : <User className="w-6 h-6 text-muted-foreground" />}
+                    ) : <UserIcon className="w-6 h-6 text-muted-foreground" />}
                     <span className="flex-1">{topic.title}</span>
                   </div>
                   <span className="text-muted-foreground text-sm">({topic.estimatedDuration} min)</span>
@@ -231,8 +255,8 @@ export default function MeetingDashboardPage() {
             <CardDescription>
                 {plannedStartTime && (
                     <span>
-                        Inicio planificado: {format(plannedStartTime, 'HH:mm')}h. 
-                        Inicio real: {actualStartTime && format(actualStartTime, 'HH:mm')}h.
+                        Inicio planificado: {format(parseISO(plannedStartTime), 'HH:mm')}h. 
+                        Inicio real: {actualStartTime && format(parseISO(actualStartTime), 'HH:mm')}h.
                     </span>
                 )}
             </CardDescription>
@@ -259,44 +283,55 @@ export default function MeetingDashboardPage() {
       </Card>
 
       <div className="flex justify-end">
-        <Button variant="destructive" onClick={endMeeting} disabled={agenda.some(t => t.status !== 'completed')}>
+        <Button variant="default" onClick={endMeeting} disabled={agenda.some(t => t.status !== 'completed')}>
           <Check className="mr-2" /> Finalizar Reunión
         </Button>
       </div>
     </div>
   );
   
-  const renderSummary = () => (
-    <Card className="max-w-3xl mx-auto shadow-lg text-center">
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl flex items-center justify-center gap-2"><BarChart /> Resumen de la Reunión</CardTitle>
-        <CardDescription>Reunión finalizada el {format(new Date(), 'PPP, p')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p>¡Gran trabajo, equipo!</p>
-        <div className="grid grid-cols-2 gap-4 text-left">
-            <p><span className="font-semibold">Presentador:</span> {lastMeetingSummary?.presenter?.name}</p>
-            <p><span className="font-semibold">Secretario:</span> {lastMeetingSummary?.secretary?.name}</p>
-        </div>
-        <p>Duración total: <span className="font-bold">{Math.floor((lastMeetingSummary?.duration || 0) / 60)} minutos</span></p>
-        <Separator />
-        <p className="text-muted-foreground">La reunión ha sido guardada en el historial.</p>
-      </CardContent>
-      <CardFooter className="flex-col gap-4">
-        <Button onClick={handlePlanNext} className="w-full">
-            Planificar Siguiente Reunión <ArrowRight className="ml-2" />
-        </Button>
-        <Button variant="outline" asChild className="w-full">
-            <a href="/history">Ver Historial de Reuniones <History className="ml-2" /></a>
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+  const renderSummary = () => {
+    if (!lastMeetingSummary) return null;
+    const summaryPresenter = members.find(m => m.id === lastMeetingSummary.presenterId);
+    const summarySecretary = members.find(m => m.id === lastMeetingSummary.secretaryId);
+    const totalDuration = lastMeetingSummary.agenda.reduce((sum, topic) => sum + topic.actualDuration, 0);
 
-  switch (meetingStatus) {
-    case 'SETUP': return renderSetup();
-    case 'IN_PROGRESS': return renderInProgress();
-    case 'SUMMARY': return renderSummary();
-    default: return null;
+    return (
+        <Card className="max-w-3xl mx-auto shadow-lg text-center">
+        <CardHeader>
+            <CardTitle className="font-headline text-2xl flex items-center justify-center gap-2"><BarChart /> Resumen de la Reunión</CardTitle>
+            <CardDescription>Reunión finalizada el {format(parseISO(lastMeetingSummary.endTime!), 'PPP, p', {locale: es})}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <p>¡Gran trabajo, equipo!</p>
+            <div className="grid grid-cols-2 gap-4 text-left">
+                <p><span className="font-semibold">Presentador:</span> {summaryPresenter?.name}</p>
+                <p><span className="font-semibold">Secretario:</span> {summarySecretary?.name}</p>
+            </div>
+            <p>Duración total: <span className="font-bold">{Math.floor(totalDuration / 60)} minutos</span></p>
+            <Separator />
+            <p className="text-muted-foreground">La reunión ha sido guardada en el historial.</p>
+        </CardContent>
+        <CardFooter className="flex-col gap-4">
+            <Button onClick={handlePlanNext} className="w-full">
+                Planificar Siguiente Reunión <ArrowRight className="ml-2" />
+            </Button>
+            <Button variant="outline" asChild className="w-full">
+                <Link href="/history">Ver Historial de Reuniones <History className="ml-2" /></Link>
+            </Button>
+        </CardFooter>
+        </Card>
+    );
   }
+
+  const meetingView = () => {
+    if(lastMeetingSummary) return renderSummary();
+    switch (meetingStatus) {
+        case 'SETUP': return renderSetup();
+        case 'IN_PROGRESS': return renderInProgress();
+        default: return <p>Cargando reunión...</p>;
+      }
+  }
+
+  return meetingView();
 }

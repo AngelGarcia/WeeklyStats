@@ -24,6 +24,9 @@ export default function HistoryPage() {
   }
   
   const getPunctuality = (meeting: typeof meetings[0]) => {
+      if (!meeting.plannedStartTime || !meeting.actualStartTime) {
+          return { text: "N/A", color: "text-muted-foreground", iconColor: "text-muted-foreground" };
+      }
       const planned = parseISO(meeting.plannedStartTime);
       const actual = parseISO(meeting.actualStartTime);
       const diffMinutes = (actual.getTime() - planned.getTime()) / (1000 * 60);
@@ -65,7 +68,7 @@ export default function HistoryPage() {
                                 <div className="flex items-center gap-2">
                                   <Clock className="w-4 h-4" /> 
                                   <span>
-                                    {format(parseISO(meeting.actualStartTime), 'HH:mm')}h - {meeting.endTime ? format(parseISO(meeting.endTime), 'HH:mm')+'h' : ''}
+                                    {meeting.actualStartTime ? format(parseISO(meeting.actualStartTime), 'HH:mm') : ''}h - {meeting.endTime ? format(parseISO(meeting.endTime), 'HH:mm')+'h' : ''}
                                     ({formatTime(totalDuration)})
                                   </span>
                                 </div>
@@ -80,8 +83,12 @@ export default function HistoryPage() {
                                     </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Planificado: {format(parseISO(meeting.plannedStartTime), 'HH:mm')}h</p>
-                                    <p>Real: {format(parseISO(meeting.actualStartTime), 'HH:mm')}h</p>
+                                  {meeting.plannedStartTime && meeting.actualStartTime && (
+                                    <>
+                                      <p>Planificado: {format(parseISO(meeting.plannedStartTime), 'HH:mm')}h</p>
+                                      <p>Real: {format(parseISO(meeting.actualStartTime), 'HH:mm')}h</p>
+                                    </>
+                                  )}
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -96,7 +103,7 @@ export default function HistoryPage() {
                                 <AvatarFallback>{presenter?.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div>
-                                <p className="text-sm font-medium">{presenter?.name}</p>
+                                <p className="text-sm font-medium">{presenter?.name || 'N/A'}</p>
                                 <p className="text-xs text-muted-foreground">Presentador</p>
                             </div>
                         </div>
@@ -109,7 +116,7 @@ export default function HistoryPage() {
                                 <AvatarFallback>{secretary?.name.charAt(0)}</AvatarFallback>
                             </Avatar>
                              <div>
-                                <p className="text-sm font-medium">{secretary?.name}</p>
+                                <p className="text-sm font-medium">{secretary?.name || 'N/A'}</p>
                                 <p className="text-xs text-muted-foreground">Secretario</p>
                             </div>
                         </div>
