@@ -11,7 +11,7 @@ import { useAppContext } from '@/app/context/AppContext';
 import type { Topic, Member, AttendanceRecord, SurveyResult } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { SecretarySuggester } from '@/app/components/SecretarySuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building, Star } from 'lucide-react';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building, Star, Shuffle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -236,12 +236,13 @@ export default function MeetingDashboardPage() {
                     ))}
                 </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">Elige un voluntario o usa la IA para una selección justa.</p>
+            <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>
           </div>
         </div>
         <SecretarySuggester
           members={members}
           presenterId={presenterId}
+          attendance={attendance}
           onSelectSecretary={(id) => updateCurrentMeeting({ secretaryId: id })}
         />
         <Separator />

@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { Home, Users, History, Settings, User as UserIcon, BarChart } from "lucide-react";
+import { Home, Users, History, Settings, User as UserIcon, BarChart, Shuffle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import { Logo } from "@/components/icons";
