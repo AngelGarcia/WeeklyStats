@@ -35,7 +35,7 @@ type AppContextType = AppState & {
   removeTopic: (id: string) => void;
   resetCurrentMeeting: () => Promise<void>;
   startMeeting: () => void;
-  endMeeting: (surveyResults: SurveyResult[]) => void;
+  endMeeting: () => void;
   completeSurvey: (surveyResults: SurveyResult[]) => void;
   clearHistory: () => Promise<void>;
   deleteMeeting: (id: string) => void;
@@ -89,6 +89,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
   const isLoading = isUserLoading || membersLoading || meetingsLoading || criteriaLoading || isCreatingMeeting;
   const isInitialized = !isLoading;
+
+  const lastCompletedMeeting = useMemo(() => {
+    if (!allMeetings) return null;
+    return allMeetings.find(m => m.status === 'COMPLETED') || null;
+  }, [allMeetings]);
+
+  const suggestedPresenterId = useMemo(() => lastCompletedMeeting?.secretaryId, [lastCompletedMeeting]);
 
   // --- Effects to sync data from DB to state ---
   useEffect(() => {
@@ -159,7 +166,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const newMeeting: Omit<Meeting, 'id'> = {
         date: new Date().toISOString(),
         status: 'SETUP',
-        presenterId: null,
+        presenterId: suggestedPresenterId || null,
         secretaryId: null,
         agenda: [],
         attendance: initialAttendance,
@@ -174,7 +181,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } finally {
        setIsCreatingMeeting(false);
     }
-}, [firestore, isCreatingMeeting, members]);
+}, [firestore, isCreatingMeeting, members, suggestedPresenterId]);
 
 
   // --- Member mutations ---
