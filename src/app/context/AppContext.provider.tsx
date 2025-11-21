@@ -13,7 +13,7 @@ import React, {
 import type { Member, Meeting, Topic, CurrentMeetingState, MeetingStatus } from '@/lib/types';
 import { initialMemberNames } from '@/lib/data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useFirebase, useUser, useMemoFirebase } from '@/firebase';
+import { useFirebase, useUser, useMemoFirebase } from '@/firebase/provider';
 import { collection, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { 
@@ -115,7 +115,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
 };
 
 type AppContextType = AppState & {
-  addMember: (member: Omit<Member, 'id' | 'avatarUrl' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => void;
+  addMember: (member: Omit<Member, 'id' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => void;
   updateMember: (member: Member) => void;
   deleteMember: (id: string) => void;
   addTopic: (topic: Omit<Topic, 'id' | 'actualDuration' | 'status'>) => void;
@@ -166,19 +166,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [meetingsFromDb]);
 
-  const addMember = useCallback((memberData: Omit<Member, 'id' | 'avatarUrl' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
+  const addMember = useCallback((memberData: Omit<Member, 'id' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
     if (!firestore || !membersCollection) return;
-    const currentMembers = state.members || [];
-    const newAvatarIndex = currentMembers.length % PlaceHolderImages.length;
     const newMember: Omit<Member, 'id'> = {
       ...memberData,
-      avatarUrl: PlaceHolderImages[newAvatarIndex].imageUrl,
       presenterCount: 0,
       volunteerCount: 0,
       topicPresenterCount: 0,
     };
     addDocumentNonBlocking(membersCollection, newMember);
-  }, [firestore, membersCollection, state.members]);
+  }, [firestore, membersCollection]);
 
   const updateMember = useCallback((member: Member) => {
     if (!firestore) return;

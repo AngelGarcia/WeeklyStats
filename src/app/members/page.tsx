@@ -36,12 +36,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import type { Member } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 export default function MemberManagementPage() {
   const { members, addMember, updateMember, deleteMember, isInitialized } = useAppContext();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
-  const [formState, setFormState] = useState({ name: '', presenterCount: 0, volunteerCount: 0, topicPresenterCount: 0 });
+  const [formState, setFormState] = useState({ name: '', presenterCount: 0, volunteerCount: 0, topicPresenterCount: 0, avatarUrl: '' });
 
   if (!isInitialized) {
     return <div className="flex justify-center items-center h-full"><p>Cargando datos de miembros...</p></div>;
@@ -49,13 +52,14 @@ export default function MemberManagementPage() {
 
   const openDialogForNew = () => {
     setEditingMember(null);
-    setFormState({ name: '', presenterCount: 0, volunteerCount: 0, topicPresenterCount: 0 });
+    const newAvatarIndex = members.length % PlaceHolderImages.length;
+    setFormState({ name: '', presenterCount: 0, volunteerCount: 0, topicPresenterCount: 0, avatarUrl: PlaceHolderImages[newAvatarIndex].imageUrl });
     setIsDialogOpen(true);
   };
 
   const openDialogForEdit = (member: Member) => {
     setEditingMember(member);
-    setFormState({ name: member.name, presenterCount: member.presenterCount, volunteerCount: member.volunteerCount, topicPresenterCount: member.topicPresenterCount });
+    setFormState({ name: member.name, presenterCount: member.presenterCount, volunteerCount: member.volunteerCount, topicPresenterCount: member.topicPresenterCount, avatarUrl: member.avatarUrl });
     setIsDialogOpen(true);
   };
 
@@ -63,13 +67,17 @@ export default function MemberManagementPage() {
     const { name, value, type } = e.target;
     setFormState(prev => ({ ...prev, [name]: type === 'number' ? parseInt(value) || 0 : value }));
   };
+  
+  const handleAvatarChange = (imageUrl: string) => {
+    setFormState(prev => ({ ...prev, avatarUrl: imageUrl }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingMember) {
       updateMember({ ...editingMember, ...formState });
     } else {
-      addMember({ name: formState.name });
+      addMember({ name: formState.name, avatarUrl: formState.avatarUrl });
     }
     setIsDialogOpen(false);
   };
@@ -141,7 +149,7 @@ export default function MemberManagementPage() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editingMember ? 'Editar Miembro' : 'Añadir Miembro'}</DialogTitle>
             <DialogDescription>
@@ -153,6 +161,18 @@ export default function MemberManagementPage() {
               <Label htmlFor="name">Nombre</Label>
               <Input id="name" name="name" value={formState.name} onChange={handleFormChange} required />
             </div>
+
+            <div className="space-y-2">
+                <Label>Avatar</Label>
+                <div className="grid grid-cols-5 gap-2">
+                    {PlaceHolderImages.map(image => (
+                        <button type="button" key={image.id} onClick={() => handleAvatarChange(image.imageUrl)} className={cn("rounded-full overflow-hidden border-2 transition-all", formState.avatarUrl === image.imageUrl ? "border-primary ring-2 ring-primary" : "border-transparent hover:border-primary/50")}>
+                           <Image src={image.imageUrl} alt={image.description} width={64} height={64} className="h-16 w-16 object-cover" data-ai-hint={image.imageHint} />
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                 <Label htmlFor="presenterCount">Reuniones lideradas</Label>
