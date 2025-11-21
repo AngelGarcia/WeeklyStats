@@ -78,8 +78,8 @@ service cloud.firestore {
     match /meetings/{meetingId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource != null;
       allow delete: if isAdmin() && resource != null;
 
       /**
