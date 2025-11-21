@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 
 export default function HistoryPage() {
-  const { meetings, members, isInitialized, clearHistory } = useAppContext();
+  const { meetings, members, isInitialized, clearHistory, deleteMeeting } = useAppContext();
 
   const sortedMeetings = useMemo(() => {
     if (!meetings) return [];
@@ -97,7 +97,7 @@ export default function HistoryPage() {
               const punctuality = getPunctuality(meeting);
 
               return (
-                <Card key={meeting.id} className="flex flex-col">
+                <Card key={meeting.id} className="flex flex-col relative">
                   <CardHeader>
                     <div className="flex justify-between items-start">
                         <div>
@@ -131,6 +131,25 @@ export default function HistoryPage() {
                             </Tooltip>
                         </TooltipProvider>
                     </div>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground hover:text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar esta reunión?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Se eliminará permanentemente la reunión del <strong>{format(parseISO(meeting.date), "d 'de' MMMM", { locale: es })}</strong>.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteMeeting(meeting.id)}>Sí, eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                   </CardHeader>
                   <CardContent className="flex-grow space-y-4">
                     <div className="flex items-center gap-4">
