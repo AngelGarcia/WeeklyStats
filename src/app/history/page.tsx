@@ -59,12 +59,21 @@ export default function HistoryPage() {
       }
       return { text: `Retraso de ${Math.round(diffMinutes)} min`, color: "text-red-600", iconColor: "text-red-600" };
   };
+  
+    const getAttendanceDetails = (attendance: AttendanceRecord[] | undefined) => {
+        if (!attendance || attendance.length === 0) {
+            return { presentCount: 0, totalCount: 0, percentage: 0, physicalCount: 0, onlineCount: 0 };
+        }
 
-  const getAttendanceSummary = (attendance: AttendanceRecord[] | undefined) => {
-    if (!attendance) return '0/0';
-    const present = attendance.filter(a => a.status === 'present').length;
-    return `${present}/${attendance.length}`;
-  };
+        const presentMembers = attendance.filter(a => a.status === 'present');
+        const presentCount = presentMembers.length;
+        const totalCount = attendance.length;
+        const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+        const physicalCount = presentMembers.filter(a => a.location === 'physical').length;
+        const onlineCount = presentMembers.filter(a => a.location === 'online').length;
+
+        return { presentCount, totalCount, percentage, physicalCount, onlineCount };
+    };
 
   const calculateEfficiencyScore = (surveyResults: SurveyResult[] | undefined) => {
     if (!surveyResults || !surveyCriteria || surveyCriteria.length === 0) return 0;
@@ -129,6 +138,7 @@ export default function HistoryPage() {
               const totalDuration = meeting.agenda.reduce((acc, topic) => acc + topic.actualDuration, 0);
               const punctuality = getPunctuality(meeting);
               const efficiencyScore = calculateEfficiencyScore(meeting.surveyResults);
+              const attendanceDetails = getAttendanceDetails(meeting.attendance);
 
               return (
                 <Card key={meeting.id} className="flex flex-col relative">
@@ -146,7 +156,13 @@ export default function HistoryPage() {
                                 </div>
                                  <div className="flex items-center gap-2">
                                     <Users className="w-4 h-4" />
-                                    <span>Asistencia: {getAttendanceSummary(meeting.attendance)}</span>
+                                    <span>
+                                        {attendanceDetails.presentCount}/{attendanceDetails.totalCount} Asist. ({attendanceDetails.percentage}%)
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Building className="w-4 h-4" /> 
+                                    <span>{attendanceDetails.physicalCount} Físico / {attendanceDetails.onlineCount} Online</span>
                                 </div>
                             </CardDescription>
                         </div>
