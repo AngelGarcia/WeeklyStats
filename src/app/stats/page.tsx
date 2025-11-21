@@ -9,6 +9,10 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis, Tooltip, L
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { ChartConfig } from '@/components/ui/chart';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Users, Presentation, UserCheck, BookOpen, User } from 'lucide-react';
 
 const attendanceChartConfig = {
   physical: {
@@ -26,14 +30,6 @@ const efficiencyChartConfig = {
     label: "Eficiencia (%)",
     color: "hsl(var(--chart-1))",
   },
-} satisfies ChartConfig;
-
-const memberStatsChartConfig = {
-  physicalAttendance: { label: "Asistencia Física", color: "hsl(var(--chart-1))" },
-  onlineAttendance: { label: "Asistencia Online", color: "hsl(var(--chart-2))" },
-  presenterCount: { label: "Presentador de Reunión", color: "hsl(var(--chart-3))" },
-  volunteerCount: { label: "Secretario", color: "hsl(var(--chart-4))" },
-  topicPresenterCount: { label: "Presentador de Tema", color: "hsl(var(--chart-5))" },
 } satisfies ChartConfig;
 
 
@@ -83,7 +79,14 @@ export default function StatsPage() {
   const memberStatsData = useMemo(() => {
     if (!members || !meetings) return [];
     
-    return members.map(member => {
+    const maxValues = {
+        totalAttendance: 0,
+        presenterCount: 0,
+        volunteerCount: 0,
+        topicPresenterCount: 0,
+    };
+
+    const stats = members.map(member => {
         const attendanceStats = { physical: 0, online: 0 };
 
         meetings.forEach(meeting => {
@@ -97,17 +100,30 @@ export default function StatsPage() {
             }
         });
 
-        return {
-            name: member.name.split(' ')[0],
+        const memberData = {
+            id: member.id,
+            name: member.name,
+            avatarUrl: member.avatarUrl,
             physicalAttendance: attendanceStats.physical,
             onlineAttendance: attendanceStats.online,
+            totalAttendance: attendanceStats.physical + attendanceStats.online,
             presenterCount: member.presenterCount || 0,
             volunteerCount: member.volunteerCount || 0,
             topicPresenterCount: member.topicPresenterCount || 0,
         };
+
+        maxValues.totalAttendance = Math.max(maxValues.totalAttendance, memberData.totalAttendance);
+        maxValues.presenterCount = Math.max(maxValues.presenterCount, memberData.presenterCount);
+        maxValues.volunteerCount = Math.max(maxValues.volunteerCount, memberData.volunteerCount);
+        maxValues.topicPresenterCount = Math.max(maxValues.topicPresenterCount, memberData.topicPresenterCount);
+
+        return memberData;
     });
+
+    return { stats, maxValues };
 }, [members, meetings]);
 
+  const getProgressValue = (value: number, max: number) => (max > 0 ? (value / max) * 100 : 0);
 
   if (!isInitialized) {
     return <div className="flex justify-center items-center h-full"><p>Cargando estadísticas...</p></div>;
@@ -172,25 +188,61 @@ export default function StatsPage() {
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Estadísticas por Miembro</CardTitle>
-                        <CardDescription>Comparativa de participación y roles de cada miembro del equipo.</CardDescription>
+                        <CardDescription>Desglose de participación por miembro. Haz clic para expandir.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <ChartContainer config={memberStatsChartConfig} className="h-[400px] w-full">
-                            <ResponsiveContainer>
-                                <BarChart data={memberStatsData}>
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} />
-                                    <YAxis />
-                                    <Tooltip content={<ChartTooltipContent />} />
-                                    <Legend content={<ChartLegendContent />} />
-                                    <Bar dataKey="physicalAttendance" stackId="attendance" fill="var(--color-physicalAttendance)" radius={4} />
-                                    <Bar dataKey="onlineAttendance" stackId="attendance" fill="var(--color-onlineAttendance)" radius={4} />
-                                    <Bar dataKey="presenterCount" stackId="participation" fill="var(--color-presenterCount)" radius={4} />
-                                    <Bar dataKey="volunteerCount" stackId="participation" fill="var(--color-volunteerCount)" radius={4} />
-                                    <Bar dataKey="topicPresenterCount" fill="var(--color-topicPresenterCount)" radius={4} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </ChartContainer>
+                        <Accordion type="multiple" className="w-full">
+                            {memberStatsData.stats.map(member => (
+                                <AccordionItem value={member.id} key={member.id}>
+                                    <AccordionTrigger>
+                                        <div className="flex items-center gap-3 w-full">
+                                            <Avatar>
+                                                <AvatarImage src={member.avatarUrl} alt={member.name} />
+                                                <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">{member.name}</span>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="space-y-4 pt-4">
+                                        <div className="grid gap-3 text-sm">
+                                            <div className="grid grid-cols-5 items-center gap-2">
+                                                <div className="col-span-1 flex items-center gap-2 text-muted-foreground"><Users className="w-4 h-4"/> Asistencia</div>
+                                                <div className="col-span-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <Progress value={getProgressValue(member.totalAttendance, memberStatsData.maxValues.totalAttendance)} className="w-full" />
+                                                        <span className="font-bold">{member.totalAttendance}</span>
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                        <span>Físico: {member.physicalAttendance}</span> / <span>Online: {member.onlineAttendance}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                             <div className="grid grid-cols-5 items-center gap-2">
+                                                <div className="col-span-1 flex items-center gap-2 text-muted-foreground"><Presentation className="w-4 h-4"/> Presentador</div>
+                                                <div className="col-span-4 flex items-center gap-2">
+                                                    <Progress value={getProgressValue(member.presenterCount, memberStatsData.maxValues.presenterCount)} className="w-full" />
+                                                    <span className="font-bold">{member.presenterCount}</span>
+                                                </div>
+                                            </div>
+                                             <div className="grid grid-cols-5 items-center gap-2">
+                                                <div className="col-span-1 flex items-center gap-2 text-muted-foreground"><UserCheck className="w-4 h-4"/> Secretario</div>
+                                                <div className="col-span-4 flex items-center gap-2">
+                                                    <Progress value={getProgressValue(member.volunteerCount, memberStatsData.maxValues.volunteerCount)} className="w-full" />
+                                                    <span className="font-bold">{member.volunteerCount}</span>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-5 items-center gap-2">
+                                                <div className="col-span-1 flex items-center gap-2 text-muted-foreground"><BookOpen className="w-4 h-4"/> Temas</div>
+                                                <div className="col-span-4 flex items-center gap-2">
+                                                    <Progress value={getProgressValue(member.topicPresenterCount, memberStatsData.maxValues.topicPresenterCount)} className="w-full" />
+                                                    <span className="font-bold">{member.topicPresenterCount}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
                     </CardContent>
                 </Card>
             </div>
