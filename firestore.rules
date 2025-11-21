@@ -63,7 +63,7 @@ service cloud.firestore {
     match /members/{memberId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isAdmin();
+      allow create: if isSignedIn();
       allow update: if isAdmin() && resource != null;
       allow delete: if isAdmin() && resource != null;
     }
