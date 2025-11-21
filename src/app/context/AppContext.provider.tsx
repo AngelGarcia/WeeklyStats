@@ -134,9 +134,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 const existingRecord = activeMeeting.attendance?.find(a => a.memberId === member.id);
                 return existingRecord || { memberId: member.id, status: 'present', location: 'physical' };
             });
-            setCurrentMeeting({...activeMeeting, attendance: newAttendance});
+             const updatedMeeting = {...activeMeeting, attendance: newAttendance};
+            // Set suggested presenter if not already set
+            if (!updatedMeeting.presenterId && suggestedPresenterId) {
+                updatedMeeting.presenterId = suggestedPresenterId;
+            }
+            setCurrentMeeting(updatedMeeting);
         } else {
-            setCurrentMeeting(activeMeeting);
+             const updatedMeeting = {...activeMeeting};
+             // Set suggested presenter if not already set
+            if (!updatedMeeting.presenterId && suggestedPresenterId) {
+                updatedMeeting.presenterId = suggestedPresenterId;
+            }
+            setCurrentMeeting(updatedMeeting);
         }
       } else {
         setCurrentMeeting(null);
@@ -151,7 +161,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } else if (isInitialized && !isCreatingMeeting && members.length > 0) {
        createNewMeeting();
     }
-  }, [allMeetings, isInitialized, isCreatingMeeting, members]);
+  }, [allMeetings, isInitialized, isCreatingMeeting, members, suggestedPresenterId]);
 
   const createNewMeeting = useCallback(async () => {
     if (!firestore || isCreatingMeeting) return;

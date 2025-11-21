@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RefreshCw, Trash2, Clock, Mic, StopCircle, Loader2, Check, CaseSensitive, User } from 'lucide-react';
+import { Play, Pause, RefreshCw, Trash2, Clock, Mic, StopCircle, Loader2, Check, CaseSensitive, User, Info } from 'lucide-react';
 import type { Member, Topic } from '@/lib/types';
 import { formatTime } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -189,9 +189,12 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
   return (
     <Card className="flex flex-col gap-4 p-4 transition-all duration-300 data-[status=completed]:opacity-60" data-status={topic.status}>
         <div className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="flex-1 w-full">
+            <div className="flex-1 w-full space-y-1">
                 <h3 className="font-semibold">{topic.title}</h3>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                {topic.description && (
+                  <p className="text-sm text-muted-foreground">{topic.description}</p>
+                )}
+                <div className="flex items-center gap-4 text-sm text-muted-foreground pt-1">
                     <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4" />
                         <span>Estimado: {topic.estimatedDuration} min</span>

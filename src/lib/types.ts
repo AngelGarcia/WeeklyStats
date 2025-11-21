@@ -11,6 +11,7 @@ export type Topic = {
   id: string;
   presenterId: string;
   title: string;
+  description?: string;
   estimatedDuration: number; // in minutes
   actualDuration: number; // in seconds
   status: 'pending' | 'active' | 'paused' | 'completed';

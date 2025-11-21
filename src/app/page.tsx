@@ -11,7 +11,7 @@ import { useAppContext } from '@/app/context/AppContext';
 import type { Topic, Member, AttendanceRecord, SurveyResult } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { RoleSuggester } from '@/app/components/RoleSuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building, Star } from 'lucide-react';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building, Star, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
 
 
 export default function MeetingDashboardPage() {
@@ -44,6 +45,7 @@ export default function MeetingDashboardPage() {
   } = useAppContext();
 
   const [newTopicTitle, setNewTopicTitle] = useState('');
+  const [newTopicDescription, setNewTopicDescription] = useState('');
   const [newTopicDuration, setNewTopicDuration] = useState(5);
   const [newTopicPresenterId, setNewTopicPresenterId] = useState<string | undefined>();
   const [surveyScores, setSurveyScores] = useState<Record<string, 0 | 1 | 2>>({});
@@ -99,11 +101,13 @@ export default function MeetingDashboardPage() {
     if (newTopicTitle.trim() !== '' && newTopicPresenterId) {
       const newTopic: Omit<Topic, 'id' | 'actualDuration' | 'status'> = {
         title: newTopicTitle,
+        description: newTopicDescription,
         estimatedDuration: newTopicDuration,
         presenterId: newTopicPresenterId,
       };
       addTopic(newTopic);
       setNewTopicTitle('');
+      setNewTopicDescription('');
       setNewTopicPresenterId(undefined);
     }
   };
@@ -262,49 +266,58 @@ export default function MeetingDashboardPage() {
         {/* Agenda Section */}
         <div>
           <Label className="text-lg font-medium">Agenda</Label>
-           <form onSubmit={handleAddTopic} className="flex flex-col sm:flex-row items-end gap-2 mt-2">
-            <div className="flex-grow w-full">
-              <Label htmlFor="topic-title" className="sr-only">Nuevo Tema</Label>
-              <Input id="topic-title" placeholder="Título del tema..." value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
+           <form onSubmit={handleAddTopic} className="space-y-3 mt-2 border p-4 rounded-lg">
+            <div className="space-y-1">
+              <Label htmlFor="topic-title">Título del Tema</Label>
+              <Input id="topic-title" placeholder="Ej: Revisión de métricas de ventas" value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
             </div>
-             <div className='w-full sm:w-auto'>
-                <Label htmlFor="topic-presenter" className="sr-only">Presentador del tema</Label>
-                 <Select value={newTopicPresenterId} onValueChange={setNewTopicPresenterId}>
-                    <SelectTrigger id="topic-presenter">
-                        <SelectValue placeholder="Encargado..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {sortedMembers.map(member => (
-                            <SelectItem key={member.id} value={member.id}>
-                                {member.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-             </div>
-            <div className="w-full sm:w-24">
-              <Label htmlFor="topic-duration" className="sr-only">Duración (min)</Label>
-              <Input id="topic-duration" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} />
+            <div className="space-y-1">
+              <Label htmlFor="topic-description">Resumen / Descripción (Opcional)</Label>
+              <Textarea id="topic-description" placeholder="Añade un breve resumen sobre el tema..." value={newTopicDescription} onChange={e => setNewTopicDescription(e.target.value)} rows={2} />
             </div>
-            <Button type="submit" className="w-full sm:w-auto" disabled={!newTopicTitle || !newTopicPresenterId}><PlusCircle className="mr-2" /> Añadir</Button>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className='space-y-1'>
+                  <Label htmlFor="topic-presenter">Encargado</Label>
+                  <Select value={newTopicPresenterId} onValueChange={setNewTopicPresenterId}>
+                      <SelectTrigger id="topic-presenter">
+                          <SelectValue placeholder="Encargado..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {sortedMembers.map(member => (
+                              <SelectItem key={member.id} value={member.id}>
+                                  {member.name}
+                              </SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="topic-duration">Duración (min)</Label>
+                <Input id="topic-duration" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} />
+              </div>
+            </div>
+            <Button type="submit" className="w-full sm:w-auto" disabled={!newTopicTitle || !newTopicPresenterId}><PlusCircle className="mr-2" /> Añadir Tema</Button>
           </form>
           <div className="space-y-2 mt-4">
             {agenda.length === 0 && <p className="text-muted-foreground text-center py-4">Aún no hay temas en la agenda.</p>}
             {agenda.map(topic => {
               const topicPresenter = members.find(m => m.id === topic.presenterId);
               return (
-              <div key={topic.id} className="flex items-center gap-2 p-2 rounded-md border">
-                  <div className="flex items-center gap-2 flex-1">
+              <div key={topic.id} className="flex items-start gap-2 p-3 rounded-md border">
+                  <div className="flex-shrink-0 pt-1">
                     {topicPresenter ? (
                         <Avatar className="h-6 w-6">
                             <AvatarImage src={topicPresenter.avatarUrl} alt={topicPresenter.name} />
                             <AvatarFallback>{topicPresenter.name.charAt(0)}</AvatarFallback>
                         </Avatar>
                     ) : <UserIcon className="w-6 h-6 text-muted-foreground" />}
-                    <span className="flex-1">{topic.title}</span>
                   </div>
-                  <span className="text-muted-foreground text-sm">({topic.estimatedDuration} min)</span>
-                   <Button size="icon" variant="ghost" onClick={() => removeTopic(topic.id)} className="text-muted-foreground hover:text-destructive">
+                  <div className="flex-1 space-y-1">
+                    <p className="font-semibold">{topic.title}</p>
+                    {topic.description && <p className="text-sm text-muted-foreground">{topic.description}</p>}
+                    <p className="text-xs text-muted-foreground">{topicPresenter?.name} - {topic.estimatedDuration} min</p>
+                  </div>
+                   <Button size="icon" variant="ghost" onClick={() => removeTopic(topic.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0">
                        <Trash2 className="h-4 w-4" />
                    </Button>
               </div>
