@@ -49,6 +49,7 @@ export default function MeetingDashboardPage() {
   const [surveyScores, setSurveyScores] = useState<Record<string, 0 | 1 | 2>>({});
 
   const lastCompletedMeeting = useMemo(() => {
+    if (!meetings) return null;
     const completed = meetings
       .filter(m => m.status === 'COMPLETED')
       .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
@@ -205,7 +206,7 @@ export default function MeetingDashboardPage() {
             </div>
           </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+        <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="presenter">Presentador</Label>
                <div className="flex gap-2">
