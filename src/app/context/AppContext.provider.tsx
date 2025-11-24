@@ -332,22 +332,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [currentMeeting, members, firestore, updateCurrentMeetingState, updateMember]);
   
   const clearHistory = useCallback(async () => {
-    if (!firestore || !completedMeetings) return;
+    if (!firestore || !completedMeetings || !members) return;
     setSaveStatus('saving');
     try {
-      const deletePromises = completedMeetings
+      const batch = writeBatch(firestore);
+
+      // Delete all completed meetings
+      completedMeetings
         .filter(m => m.status === 'COMPLETED')
-        .map(meeting => {
+        .forEach(meeting => {
           const meetingRef = doc(firestore, 'meetings', meeting.id);
-          return deleteDocumentNonBlocking(meetingRef);
+          batch.delete(meetingRef);
         });
-      await Promise.all(deletePromises);
+      
+      // Reset stats for all members
+      members.forEach(member => {
+        const memberRef = doc(firestore, 'members', member.id);
+        batch.update(memberRef, {
+          presenterCount: 0,
+          volunteerCount: 0,
+          topicPresenterCount: 0
+        });
+      });
+      
+      await batch.commit();
       setSaveStatus('saved');
     } catch (e) {
       console.error("Failed to clear history", e);
       setSaveStatus('error');
     }
-  }, [firestore, completedMeetings]);
+  }, [firestore, completedMeetings, members]);
 
   const deleteMeeting = useCallback((id: string) => {
     if (!firestore) return Promise.reject(new Error("Firestore not initialized"));
