@@ -109,6 +109,7 @@ export default function MeetingDashboardPage() {
       setNewTopicTitle('');
       setNewTopicDescription('');
       setNewTopicPresenterId(undefined);
+      setNewTopicDuration(5);
     }
   };
 
