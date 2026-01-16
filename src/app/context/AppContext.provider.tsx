@@ -31,7 +31,7 @@ type AppContextType = AppState & {
   updateMember: (member: Member) => void;
   deleteMember: (id: string) => void;
   addTopic: (topic: Omit<Topic, 'id' | 'actualDuration' | 'status'>) => void;
-  updateTopic: (topic: Topic) => void;
+  updateTopic: (id: string, partialTopic: Partial<Topic>) => void;
   removeTopic: (id: string) => void;
   resetCurrentMeeting: () => Promise<void>;
   startMeeting: () => void;
@@ -252,9 +252,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updateCurrentMeeting({ agenda: updatedAgenda });
   }, [currentMeeting, updateCurrentMeeting]);
 
-  const updateTopic = useCallback((topic: Topic) => {
+  const updateTopic = useCallback((id: string, partialTopic: Partial<Topic>) => {
     if (!currentMeeting) return;
-    const updatedAgenda = currentMeeting.agenda.map((t) => (t.id === topic.id ? topic : t));
+    const updatedAgenda = currentMeeting.agenda.map((t) =>
+      t.id === id ? { ...t, ...partialTopic } : t
+    );
     updateCurrentMeeting({ agenda: updatedAgenda });
   }, [currentMeeting, updateCurrentMeeting]);
 

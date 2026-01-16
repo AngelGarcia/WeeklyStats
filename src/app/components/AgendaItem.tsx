@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface AgendaItemProps {
   topic: Topic;
-  onUpdate: (topic: Topic) => void;
+  onUpdate: (id: string, partialTopic: Partial<Topic>) => void;
   onRemove: (id: string) => void;
   members: Member[];
 }
@@ -66,7 +66,7 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
   const handleToggle = () => {
     const newIsActive = !isActive;
     setIsActive(newIsActive);
-    onUpdate({ ...topic, status: newIsActive ? 'active' : 'paused', actualDuration: seconds });
+    onUpdate(topic.id, { status: newIsActive ? 'active' : 'paused', actualDuration: seconds });
   };
 
   const handleReset = () => {
@@ -77,11 +77,11 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
 
     if (topic.status === 'completed') {
       // "Re-open" the topic, keep the time.
-      onUpdate({ ...topic, status: 'pending' });
+      onUpdate(topic.id, { status: 'pending' });
     } else {
       // "Pure" reset, clear everything.
       setSeconds(0);
-      onUpdate({ ...topic, status: 'pending', actualDuration: 0, transcription: undefined, summary: undefined });
+      onUpdate(topic.id, { status: 'pending', actualDuration: 0, transcription: undefined, summary: undefined });
     }
   };
 
@@ -90,7 +90,7 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
         handleStopRecording();
     }
     setIsActive(false);
-    onUpdate({ ...topic, status: 'completed', actualDuration: seconds });
+    onUpdate(topic.id, { status: 'completed', actualDuration: seconds });
   };
   
   const handleStartRecording = async () => {
@@ -146,11 +146,11 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
                     try {
                       setProcessingState('transcribing');
                       const transcriptionResult = await transcribeAudio({ audioDataUri: base64Audio });
-                      onUpdate({ ...topic, transcription: transcriptionResult.transcription });
+                      onUpdate(topic.id, { transcription: transcriptionResult.transcription });
                       
                       setProcessingState('summarizing');
                       const summaryResult = await summarizeText({ text: transcriptionResult.transcription, topic: topic.title });
-                      onUpdate({ ...topic, transcription: transcriptionResult.transcription, summary: summaryResult.summary });
+                      onUpdate(topic.id, { summary: summaryResult.summary });
 
                     } catch (error) {
                        console.error("Error in AI processing:", error);
