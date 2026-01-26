@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 export default function MeetingDashboardPage() {
@@ -428,6 +429,50 @@ export default function MeetingDashboardPage() {
               <AgendaItem key={topic.id} topic={topic} onUpdate={updateTopic} onRemove={removeTopic} members={members} />
             ))}
           </div>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="add-topic">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                    <PlusCircle className="h-4 w-4" />
+                    Añadir tema sobre la marcha
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-4">
+                <form onSubmit={handleAddTopic} className="space-y-3 border p-4 rounded-lg bg-muted/50">
+                  <div className="space-y-1">
+                    <Label htmlFor="topic-title-inprogress">Título del Tema</Label>
+                    <Input id="topic-title-inprogress" placeholder="Ej: Nuevo Proyecto X" value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="topic-description-inprogress">Resumen / Descripción (Opcional)</Label>
+                    <Textarea id="topic-description-inprogress" placeholder="Añade un breve resumen sobre el tema..." value={newTopicDescription} onChange={e => setNewTopicDescription(e.target.value)} rows={2} />
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className='space-y-1'>
+                        <Label htmlFor="topic-presenter-inprogress">Encargado</Label>
+                        <Select value={newTopicPresenterId} onValueChange={setNewTopicPresenterId}>
+                            <SelectTrigger id="topic-presenter-inprogress">
+                                <SelectValue placeholder="Encargado..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {sortedMembers.map(member => (
+                                    <SelectItem key={member.id} value={member.id}>
+                                        {member.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="topic-duration-inprogress">Duración (min)</Label>
+                      <Input id="topic-duration-inprogress" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full sm:w-auto" disabled={!newTopicTitle || !newTopicPresenterId}><PlusCircle className="mr-2" /> Añadir Tema</Button>
+                </form>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
 

@@ -62,7 +62,7 @@ const initialCriteria: Omit<SurveyCriterion, 'id'>[] = [
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { firestore } = useFirebase();
-  const { isUserLoading } = useUser();
+  const { user, isUserLoading } = useUser();
 
   // --- Data fetching ---
   const membersCollection = useMemoFirebase(() => 
@@ -127,7 +127,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
   useEffect(() => {
-    if (allMeetings) {
+    if (allMeetings && user) {
       const activeMeeting = allMeetings.find(m => m.status === 'SETUP' || m.status === 'IN_PROGRESS' || m.status === 'SURVEY');
       const completed = allMeetings.filter(m => m.status === 'COMPLETED');
       
@@ -140,18 +140,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 return existingRecord || { memberId: member.id, status: 'present', location: 'physical' };
             });
              const updatedMeeting = {...activeMeeting, attendance: newAttendance};
-            // Set suggested presenter if not already set
-            if (!updatedMeeting.presenterId && suggestedPresenterId) {
-                updatedMeeting.presenterId = suggestedPresenterId;
-            }
             setCurrentMeeting(updatedMeeting);
         } else {
-             const updatedMeeting = {...activeMeeting};
-             // Set suggested presenter if not already set
-            if (!updatedMeeting.presenterId && suggestedPresenterId) {
-                updatedMeeting.presenterId = suggestedPresenterId;
-            }
-            setCurrentMeeting(updatedMeeting);
+            setCurrentMeeting(activeMeeting);
         }
       } else {
         setCurrentMeeting(null);
@@ -163,10 +154,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         createNewMeeting();
       }
 
-    } else if (isInitialized && !isCreatingMeeting && members.length > 0) {
+    } else if (isInitialized && !isCreatingMeeting && members.length > 0 && user) {
        createNewMeeting();
     }
-  }, [allMeetings, isInitialized, isCreatingMeeting, members, suggestedPresenterId]);
+  }, [allMeetings, isInitialized, isCreatingMeeting, members, user]);
 
   const createNewMeeting = useCallback(async () => {
     if (!firestore || isCreatingMeeting) return;
@@ -179,12 +170,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         location: 'physical'
     }));
 
+    const meetingPresenterId = suggestedPresenterId || null;
+    const defaultAgenda: Topic[] = [];
+    if (meetingPresenterId) {
+        defaultAgenda.push({
+            id: crypto.randomUUID(),
+            title: "Revisión de acciones reunión anterior",
+            description: "Repasar las tareas y acciones pendientes de la última reunión.",
+            estimatedDuration: 5,
+            presenterId: meetingPresenterId,
+            actualDuration: 0,
+            status: 'pending',
+        });
+    }
+
     const newMeeting: Omit<Meeting, 'id'> = {
         date: new Date().toISOString(),
         status: 'SETUP',
-        presenterId: suggestedPresenterId || null,
+        presenterId: meetingPresenterId,
         secretaryId: null,
-        agenda: [],
+        agenda: defaultAgenda,
         attendance: initialAttendance,
     };
     try {
@@ -201,10 +206,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
   // --- Member mutations ---
-  const addMember = useCallback((memberData: Omit<Member, 'id' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount'>) => {
+  const addMember = useCallback((memberData: Omit<Member, 'id' | 'presenterCount' | 'volunteerCount' | 'topicPresenterCount' | 'avatarUrl'>) => {
     if (!firestore || !membersCollection) return;
     const newMember: Omit<Member, 'id'> = {
       ...memberData,
+      avatarUrl: '',
       presenterCount: 0,
       volunteerCount: 0,
       topicPresenterCount: 0,
@@ -240,6 +246,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const updateCurrentMeeting = (payload: Partial<Meeting>) => {
     if (currentMeeting) {
         const updated = { ...currentMeeting, ...payload };
+
+        // If presenter is being set (and wasn't before), and the default topic isn't there, add it.
+        if (payload.presenterId && !currentMeeting.presenterId && !updated.agenda.some(t => t.title === 'Revisión de acciones reunión anterior')) {
+            const defaultTopic: Topic = {
+                id: crypto.randomUUID(),
+                title: 'Revisión de acciones reunión anterior',
+                description: 'Repasar las tareas y acciones pendientes de la última reunión.',
+                estimatedDuration: 5,
+                presenterId: payload.presenterId,
+                actualDuration: 0,
+                status: 'pending',
+            };
+            // Add it to the beginning of the agenda
+            updated.agenda = [defaultTopic, ...updated.agenda];
+        }
+        
         setCurrentMeeting(updated); // Optimistic update
         updateCurrentMeetingState(updated);
     }
@@ -259,10 +281,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateTopic = useCallback((id: string, partialTopic: Partial<Topic>) => {
     if (!currentMeeting) return;
-    const updatedAgenda = currentMeeting.agenda.map((t) =>
-      t.id === id ? { ...t, ...partialTopic } : t
-    );
-    updateCurrentMeeting({ agenda: updatedAgenda });
+    // Don't create a new object for the whole agenda if not needed.
+    // This was causing the "re-opening" issue.
+    const topicIndex = currentMeeting.agenda.findIndex(t => t.id === id);
+    if (topicIndex === -1) return;
+
+    const newAgenda = [...currentMeeting.agenda];
+    newAgenda[topicIndex] = { ...newAgenda[topicIndex], ...partialTopic };
+    
+    updateCurrentMeeting({ agenda: newAgenda });
   }, [currentMeeting, updateCurrentMeeting]);
 
   const removeTopic = useCallback((id: string) => {
