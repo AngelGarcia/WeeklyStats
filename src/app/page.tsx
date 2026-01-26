@@ -11,7 +11,7 @@ import { useAppContext } from '@/app/context/AppContext';
 import type { Topic, Member, AttendanceRecord, SurveyResult } from '@/lib/types';
 import { AgendaItem } from '@/app/components/AgendaItem';
 import { RoleSuggester } from '@/app/components/RoleSuggester';
-import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Laptop, Building, Star, Info } from 'lucide-react';
+import { PlusCircle, Users, ClipboardList, BarChart, History, Play, Check, Trash2, ArrowRight, Calendar as CalendarIcon, User as UserIcon, Loader2, AlertCircle, Home, Building, Star, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -374,7 +374,7 @@ export default function MeetingDashboardPage() {
 
                                 <div className={cn("flex items-center gap-3", isAbsent && "invisible")}>
                                     <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
-                                        <span>Físico</span>
+                                        <span>Oficina</span>
                                         <Building className="h-5 w-5" />
                                     </div>
                                     <Switch
@@ -387,8 +387,8 @@ export default function MeetingDashboardPage() {
                                         aria-label="Cambiar entre asistencia física y online"
                                     />
                                     <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
-                                        <span>Online</span>
-                                        <Laptop className="h-5 w-5" />
+                                        <span>Casa</span>
+                                        <Home className="h-5 w-5" />
                                     </div>
                                 </div>
                             </div>
