@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Laptop, Building, Star, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
+import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Home, Building, Star, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -223,10 +223,10 @@ export default function HistoryPage() {
                             </AlertDialog>
                         </div>
                         <AccordionTrigger className="w-full p-6 text-left hover:no-underline">
-                            <div className="flex justify-between items-start w-full pr-8">
-                                <div>
+                             <div className="flex items-start w-full pr-8">
+                                <div className="flex-1">
                                     <CardTitle className="font-headline">{format(parseISO(meeting.date), "d 'de' MMMM, yyyy", { locale: es })}</CardTitle>
-                                    <CardDescription className="flex flex-col items-start gap-1 pt-1 text-xs">
+                                    <CardDescription className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-1 pt-1 text-xs">
                                         <div className="flex items-center gap-2">
                                         <Clock className="w-4 h-4" /> 
                                         <span>
@@ -240,13 +240,15 @@ export default function HistoryPage() {
                                                 {attendanceDetails.presentCount}/{attendanceDetails.totalCount} Asist. ({attendanceDetails.percentage}%)
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Building className="w-4 h-4" /> 
-                                            <span>{attendanceDetails.physicalCount} Físico / {attendanceDetails.onlineCount} Online</span>
-                                        </div>
+                                        {efficiencyScore > 0 && (
+                                            <div className="flex items-center gap-2 font-semibold">
+                                                <Star className="w-4 h-4 text-yellow-500" /> 
+                                                <span>Efic. {efficiencyScore}%</span>
+                                            </div>
+                                        )}
                                     </CardDescription>
                                 </div>
-                                <div onClick={(e) => e.stopPropagation()}>
+                                <div className="pl-4 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -328,8 +330,8 @@ export default function HistoryPage() {
                                                                 </div>
                                                                 {record.status === 'present' ? (
                                                                     <Badge variant="secondary" className="flex items-center gap-1">
-                                                                        {record.location === 'physical' ? <Building className="h-3 w-3"/> : <Laptop className="h-3 w-3"/>}
-                                                                        {record.location === 'physical' ? 'Físico' : 'Online'}
+                                                                        {record.location === 'physical' ? <Building className="h-3 w-3"/> : <Home className="h-3 w-3"/>}
+                                                                        {record.location === 'physical' ? 'Oficina' : 'Casa'}
                                                                     </Badge>
                                                                 ) : (
                                                                     <Badge variant="outline">Ausente</Badge>
