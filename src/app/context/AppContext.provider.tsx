@@ -397,20 +397,77 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [firestore, completedMeetings, members]);
 
-  const deleteMeeting = useCallback((id: string) => {
-    if (!firestore) return Promise.reject(new Error("Firestore not initialized"));
+  const deleteMeeting = useCallback(async (id: string) => {
+    if (!firestore || !members || !completedMeetings) {
+      console.error("Firestore or member/meeting data not available for deletion.");
+      setSaveStatus('error');
+      return;
+    }
+
+    const meetingToDelete = completedMeetings.find(m => m.id === id);
+    if (!meetingToDelete) {
+      console.error("Meeting to delete not found in state:", id);
+      setSaveStatus('error');
+      return;
+    }
+
     setSaveStatus('saving');
-    const meetingRef = doc(firestore, 'meetings', id);
-    return deleteDocumentNonBlocking(meetingRef)
-      .then(() => {
-        setSaveStatus('saved');
-      })
-      .catch((e) => {
-        setSaveStatus('error');
-        // The non-blocking update will emit the permission error,
-        // so we don't need to re-throw, but we should update local status.
-      });
-  }, [firestore]);
+    try {
+      const batch = writeBatch(firestore);
+
+      // Decrement presenter count
+      if (meetingToDelete.presenterId) {
+        const presenter = members.find(m => m.id === meetingToDelete.presenterId);
+        if (presenter) {
+          const memberRef = doc(firestore, 'members', presenter.id);
+          batch.update(memberRef, {
+            presenterCount: Math.max(0, (presenter.presenterCount || 0) - 1),
+          });
+        }
+      }
+
+      // Decrement secretary count
+      if (meetingToDelete.secretaryId) {
+        const secretary = members.find(m => m.id === meetingToDelete.secretaryId);
+        if (secretary) {
+          const memberRef = doc(firestore, 'members', secretary.id);
+          batch.update(memberRef, {
+            volunteerCount: Math.max(0, (secretary.volunteerCount || 0) - 1),
+          });
+        }
+      }
+
+      // Decrement topic presenter counts
+      const topicCounts = meetingToDelete.agenda.reduce((acc, topic) => {
+        if (topic.presenterId) {
+          acc[topic.presenterId] = (acc[topic.presenterId] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      for (const memberId in topicCounts) {
+        const member = members.find(m => m.id === memberId);
+        if (member) {
+          const memberRef = doc(firestore, 'members', memberId);
+          const newCount = Math.max(
+            0,
+            (member.topicPresenterCount || 0) - topicCounts[memberId]
+          );
+          batch.update(memberRef, { topicPresenterCount: newCount });
+        }
+      }
+
+      // Delete the meeting document
+      const meetingRef = doc(firestore, 'meetings', id);
+      batch.delete(meetingRef);
+
+      await batch.commit();
+      setSaveStatus('saved');
+    } catch (e) {
+      console.error('Failed to delete meeting and update stats', e);
+      setSaveStatus('error');
+    }
+  }, [firestore, members, completedMeetings]);
 
   const updateCriteria = useCallback(async (criteria: SurveyCriterion[]) => {
     if (!firestore) throw new Error("Firestore not initialized");
