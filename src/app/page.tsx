@@ -19,7 +19,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -338,50 +339,53 @@ export default function MeetingDashboardPage() {
                 {sortedMembers.map(member => {
                     const memberAttendance = attendance?.find(a => a.memberId === member.id);
                     const isAbsent = memberAttendance?.status === 'absent';
-                    const value = memberAttendance?.status === 'present' 
-                        ? `present-${memberAttendance.location}`
-                        : 'absent';
+                    const isOnline = !isAbsent && memberAttendance?.location === 'online';
 
                     return (
                         <div 
                             key={member.id} 
                             className={cn(
-                                "flex flex-col sm:flex-row items-center justify-between gap-2 p-2 border rounded-md transition-colors",
-                                isAbsent && "bg-muted/50 text-muted-foreground"
+                                "flex flex-col sm:flex-row items-center justify-between gap-x-4 gap-y-2 p-3 border rounded-md transition-colors",
+                                isAbsent && "bg-muted/50"
                             )}
                         >
-                            <div className="flex items-center gap-3">
-                                <Avatar className={cn(isAbsent && "opacity-50")}>
+                            <div className="flex items-center gap-3 flex-1">
+                                <Avatar className={cn("transition-opacity", isAbsent && "opacity-50")}>
                                     <AvatarImage src={member.avatarUrl} alt={member.name} />
                                     <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <span className={cn("font-medium", isAbsent && "text-muted-foreground")}>{member.name}</span>
                             </div>
-                            <RadioGroup 
-                                value={value} 
-                                onValueChange={(val) => {
-                                    if (val === 'absent') {
-                                        handleAttendanceChange(member.id, 'absent');
-                                    } else {
-                                        const location = val.split('-')[1] as 'physical' | 'online';
-                                        handleAttendanceChange(member.id, 'present', location);
-                                    }
-                                }}
-                                className="flex items-center gap-4"
-                            >
+                            <div className="flex items-center gap-x-6 gap-y-2">
                                 <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="present-physical" id={`physical-${member.id}`} />
-                                    <Label htmlFor={`physical-${member.id}`} className="flex items-center gap-1"><Building className="h-4 w-4"/> Físico</Label>
+                                    <Checkbox
+                                        id={`absent-${member.id}`}
+                                        checked={isAbsent}
+                                        onCheckedChange={(checked) => {
+                                            if (checked) {
+                                                handleAttendanceChange(member.id, 'absent');
+                                            } else {
+                                                handleAttendanceChange(member.id, 'present', 'physical');
+                                            }
+                                        }}
+                                    />
+                                    <Label htmlFor={`absent-${member.id}`} className="font-normal cursor-pointer text-muted-foreground">Ausente</Label>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="present-online" id={`online-${member.id}`} />
-                                    <Label htmlFor={`online-${member.id}`} className="flex items-center gap-1"><Laptop className="h-4 w-4"/> Online</Label>
+
+                                <div className={cn("flex items-center gap-2", isAbsent && "invisible")}>
+                                    <Building className="h-5 w-5 text-muted-foreground"/>
+                                    <Switch
+                                        id={`location-${member.id}`}
+                                        checked={isOnline}
+                                        onCheckedChange={(checked) => {
+                                            handleAttendanceChange(member.id, 'present', checked ? 'online' : 'physical');
+                                        }}
+                                        disabled={isAbsent}
+                                        aria-label="Cambiar entre asistencia física y online"
+                                    />
+                                    <Laptop className="h-5 w-5 text-muted-foreground"/>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="absent" id={`absent-${member.id}`} />
-                                    <Label htmlFor={`absent-${member.id}`}>Ausente</Label>
-                                </div>
-                            </RadioGroup>
+                            </div>
                         </div>
                     );
                 })}
@@ -571,5 +575,3 @@ export default function MeetingDashboardPage() {
     </main>
   );
 }
-
-    
