@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Laptop, Building, Star, TrendingUp, TrendingDown } from 'lucide-react';
+import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Laptop, Building, Star, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -26,10 +26,14 @@ import { Badge } from '@/components/ui/badge';
 import type { AttendanceRecord, Meeting, SurveyResult } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 
 export default function HistoryPage() {
-  const { meetings, members, isInitialized, clearHistory, deleteMeeting, surveyCriteria } = useAppContext();
+  const { meetings, members, isInitialized, clearHistory, deleteMeeting, reopenMeeting, currentMeeting, surveyCriteria } = useAppContext();
+  const router = useRouter();
+  const { toast } = useToast();
 
   const sortedMeetings = useMemo(() => {
     if (!meetings) return [];
@@ -96,6 +100,34 @@ export default function HistoryPage() {
     const finalScore = (totalScore / totalWeight) * 100;
     return Math.round(finalScore);
   };
+  
+  const isMeetingInProgress = currentMeeting && (currentMeeting.status === 'IN_PROGRESS' || currentMeeting.status === 'SURVEY');
+
+  const handleEditClick = async (meetingId: string) => {
+    if (isMeetingInProgress) {
+        toast({
+            variant: "destructive",
+            title: "Acción no permitida",
+            description: "No puedes editar una reunión del historial mientras otra está en progreso.",
+        });
+        return;
+    }
+    try {
+        await reopenMeeting(meetingId);
+        toast({
+            title: "Modo Edición",
+            description: "La reunión ha sido cargada para su edición.",
+        });
+        router.push('/');
+    } catch (e) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No se pudo abrir la reunión para editar. Por favor, inténtalo de nuevo.",
+        });
+    }
+  };
+
 
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -152,7 +184,24 @@ export default function HistoryPage() {
               return (
                 <AccordionItem value={meeting.id} key={meeting.id} asChild>
                     <Card className="relative overflow-hidden">
-                        <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="absolute top-2 right-2 flex items-center" onClick={(e) => e.stopPropagation()}>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="inline-flex"> {/* div wrapper for disabled button tooltip */}
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" onClick={(e) => { e.stopPropagation(); handleEditClick(meeting.id); }} disabled={isMeetingInProgress}>
+                                                <Pencil className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    {isMeetingInProgress && (
+                                        <TooltipContent>
+                                            <p>Finaliza la reunión activa para poder editar.</p>
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
+                            </TooltipProvider>
+
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">

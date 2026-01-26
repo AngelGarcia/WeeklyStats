@@ -39,6 +39,7 @@ type AppContextType = AppState & {
   completeSurvey: (surveyResults: SurveyResult[]) => void;
   clearHistory: () => Promise<void>;
   deleteMeeting: (id: string) => void;
+  reopenMeeting: (id: string) => Promise<void>;
   isInitialized: boolean;
   updateCurrentMeeting: (payload: Partial<Meeting>) => void;
   lastMeetingSummary: Meeting | null;
@@ -469,6 +470,85 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [firestore, members, completedMeetings]);
 
+  const reopenMeeting = useCallback(async (id: string) => {
+    if (!firestore || !members || !allMeetings || !currentMeeting) {
+      console.error("Required context not available for reopening.");
+      setSaveStatus('error');
+      return;
+    }
+
+    if (currentMeeting.status === 'IN_PROGRESS' || currentMeeting.status === 'SURVEY') {
+      console.error("Cannot edit a past meeting while another is in progress.");
+      setSaveStatus('error');
+      throw new Error("Reunión en curso");
+    }
+
+    const meetingToReopen = allMeetings.find(m => m.id === id);
+    if (!meetingToReopen) {
+      console.error("Meeting to reopen not found in state:", id);
+      setSaveStatus('error');
+      return;
+    }
+
+    setSaveStatus('saving');
+    try {
+      const batch = writeBatch(firestore);
+
+      // Delete the current placeholder meeting
+      batch.delete(doc(firestore, 'meetings', currentMeeting.id));
+
+      // Decrement stats for the meeting being reopened
+      if (meetingToReopen.presenterId) {
+        const presenter = members.find(m => m.id === meetingToReopen.presenterId);
+        if (presenter) {
+          const memberRef = doc(firestore, 'members', presenter.id);
+          batch.update(memberRef, {
+            presenterCount: Math.max(0, (presenter.presenterCount || 0) - 1),
+          });
+        }
+      }
+
+      if (meetingToReopen.secretaryId) {
+        const secretary = members.find(m => m.id === meetingToReopen.secretaryId);
+        if (secretary) {
+          const memberRef = doc(firestore, 'members', secretary.id);
+          batch.update(memberRef, {
+            volunteerCount: Math.max(0, (secretary.volunteerCount || 0) - 1),
+          });
+        }
+      }
+
+      const topicCounts = meetingToReopen.agenda.reduce((acc, topic) => {
+        if (topic.presenterId) {
+          acc[topic.presenterId] = (acc[topic.presenterId] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      for (const memberId in topicCounts) {
+        const member = members.find(m => m.id === memberId);
+        if (member) {
+          const memberRef = doc(firestore, 'members', memberId);
+          const newCount = Math.max(
+            0,
+            (member.topicPresenterCount || 0) - topicCounts[memberId]
+          );
+          batch.update(memberRef, { topicPresenterCount: newCount });
+        }
+      }
+      
+      const meetingRef = doc(firestore, 'meetings', id);
+      batch.update(meetingRef, { status: 'SETUP' });
+
+      await batch.commit();
+      setSaveStatus('saved');
+    } catch (e) {
+      console.error('Failed to reopen meeting', e);
+      setSaveStatus('error');
+      throw e;
+    }
+  }, [firestore, members, allMeetings, currentMeeting]);
+
   const updateCriteria = useCallback(async (criteria: SurveyCriterion[]) => {
     if (!firestore) throw new Error("Firestore not initialized");
 
@@ -525,6 +605,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       completeSurvey,
       clearHistory,
       deleteMeeting,
+      reopenMeeting,
       isInitialized,
       isLoading,
       updateCurrentMeeting,
@@ -549,6 +630,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         completeSurvey,
         clearHistory, 
         deleteMeeting,
+        reopenMeeting,
         isInitialized,
         isLoading, 
         updateCurrentMeeting,
