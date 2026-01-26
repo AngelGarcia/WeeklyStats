@@ -93,6 +93,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [surveyCriteria, setSurveyCriteria] = useState<SurveyCriterion[]>([]);
   const [lastMeetingSummary, setLastMeetingSummary] = useState<Meeting | null>(null);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  const [isReopening, setIsReopening] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [originalMeetingOnEdit, setOriginalMeetingOnEdit] = useState<Meeting | null>(null);
   
@@ -148,20 +149,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         } else {
             setCurrentMeeting(activeMeeting);
         }
+        if (isReopening) {
+            setIsReopening(false);
+        }
       } else {
         setCurrentMeeting(null);
       }
       
       setCompletedMeetings(completed);
 
-      if(!activeMeeting && !isCreatingMeeting && isInitialized && members.length > 0) {
+      if(!activeMeeting && !isCreatingMeeting && !isReopening && isInitialized && members.length > 0) {
         createNewMeeting();
       }
 
-    } else if (isInitialized && !isCreatingMeeting && members.length > 0 && user) {
+    } else if (isInitialized && !isCreatingMeeting && !isReopening && members.length > 0 && user) {
        createNewMeeting();
     }
-  }, [allMeetings, isInitialized, isCreatingMeeting, members, user]);
+  }, [allMeetings, isInitialized, isCreatingMeeting, members, user, isReopening]);
 
   const createNewMeeting = useCallback(async () => {
     if (!firestore || isCreatingMeeting) return;
@@ -285,8 +289,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateTopic = useCallback((id: string, partialTopic: Partial<Topic>) => {
     if (!currentMeeting) return;
-    // Don't create a new object for the whole agenda if not needed.
-    // This was causing the "re-opening" issue.
     const topicIndex = currentMeeting.agenda.findIndex(t => t.id === id);
     if (topicIndex === -1) return;
 
@@ -377,9 +379,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         await batch.commit();
         setSaveStatus('saved');
-        
-        setLastMeetingSummary(finalMeetingData);
-        setCurrentMeeting(null);
 
     } catch(e) {
         console.error("Failed to finalize meeting and update stats", e);
@@ -397,6 +396,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
 
       await finalizeMeetingAndUpdateStats(finalMeeting);
+      setLastMeetingSummary(finalMeeting);
+      setCurrentMeeting(null);
       setOriginalMeetingOnEdit(null);
 
   }, [currentMeeting, finalizeMeetingAndUpdateStats]);
@@ -412,6 +413,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     
     await finalizeMeetingAndUpdateStats(finalMeeting);
+    setLastMeetingSummary(finalMeeting);
+    setCurrentMeeting(null);
     setOriginalMeetingOnEdit(null);
     
   }, [currentMeeting, finalizeMeetingAndUpdateStats]);
@@ -521,13 +524,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [firestore, members, completedMeetings]);
 
   const reopenMeeting = useCallback(async (id: string) => {
-    if (!firestore || !members || !allMeetings || !currentMeeting) {
+    if (!firestore || !members || !allMeetings) {
       console.error("Required context not available for reopening.");
       setSaveStatus('error');
       return;
     }
 
-    if (currentMeeting.status === 'IN_PROGRESS' || currentMeeting.status === 'SURVEY') {
+    if (currentMeeting && (currentMeeting.status === 'IN_PROGRESS' || currentMeeting.status === 'SURVEY')) {
       console.error("Cannot edit a past meeting while another is in progress.");
       setSaveStatus('error');
       throw new Error("Reunión en curso");
@@ -541,13 +544,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     
     setOriginalMeetingOnEdit(meetingToReopen);
+    setIsReopening(true);
 
     setSaveStatus('saving');
     try {
       const batch = writeBatch(firestore);
 
-      // Delete the current placeholder meeting
-      batch.delete(doc(firestore, 'meetings', currentMeeting.id));
+      // Delete the current placeholder meeting if it exists
+      if (currentMeeting) {
+        batch.delete(doc(firestore, 'meetings', currentMeeting.id));
+      }
 
       // Decrement stats for the meeting being reopened
       if (meetingToReopen.presenterId) {
@@ -597,6 +603,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       console.error('Failed to reopen meeting', e);
       setSaveStatus('error');
+      setIsReopening(false);
       throw e;
     }
   }, [firestore, members, allMeetings, currentMeeting]);
@@ -615,6 +622,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     
     await finalizeMeetingAndUpdateStats(meetingToRestore);
+    setLastMeetingSummary(null);
+    setCurrentMeeting(null);
     setOriginalMeetingOnEdit(null);
   }, [originalMeetingOnEdit, finalizeMeetingAndUpdateStats]);
 
