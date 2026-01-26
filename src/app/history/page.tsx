@@ -131,7 +131,7 @@ export default function HistoryPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Accordion type="single" collapsible className="w-full space-y-4">
             {sortedMeetings.map(meeting => {
               const presenter = members.find(m => m.id === meeting.presenterId);
               const secretary = members.find(m => m.id === meeting.secretaryId);
@@ -141,206 +141,214 @@ export default function HistoryPage() {
               const attendanceDetails = getAttendanceDetails(meeting.attendance);
 
               return (
-                <Card key={meeting.id} className="flex flex-col relative">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <CardTitle className="font-headline">{format(parseISO(meeting.date), "d 'de' MMMM, yyyy", { locale: es })}</CardTitle>
-                            <CardDescription className="flex flex-col items-start gap-1 pt-1 text-xs">
-                                <div className="flex items-center gap-2">
-                                  <Clock className="w-4 h-4" /> 
-                                  <span>
-                                    {meeting.actualStartTime ? format(parseISO(meeting.actualStartTime), 'HH:mm') : ''}h - {meeting.endTime ? format(parseISO(meeting.endTime), 'HH:mm')+'h' : ''}
-                                    ({formatTime(totalDuration)})
-                                  </span>
-                                </div>
-                                 <div className="flex items-center gap-2">
-                                    <Users className="w-4 h-4" />
-                                    <span>
-                                        {attendanceDetails.presentCount}/{attendanceDetails.totalCount} Asist. ({attendanceDetails.percentage}%)
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Building className="w-4 h-4" /> 
-                                    <span>{attendanceDetails.physicalCount} Físico / {attendanceDetails.onlineCount} Online</span>
-                                </div>
-                            </CardDescription>
+                <AccordionItem value={meeting.id} key={meeting.id} asChild>
+                    <Card className="relative overflow-hidden">
+                        <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar esta reunión?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. Se eliminará permanentemente la reunión del <strong>{format(parseISO(meeting.date), "d 'de' MMMM", { locale: es })}</strong>.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteMeeting(meeting.id)}>Sí, eliminar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
-                         <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger>
-                                    <div className={`flex items-center gap-1 text-xs font-semibold ${punctuality.color}`}>
-                                        <AlertCircle className={`w-4 h-4 ${punctuality.iconColor}`} />
-                                        <span>{punctuality.text}</span>
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {meeting.plannedStartTime && meeting.actualStartTime && (
-                                    <>
-                                      <p>Planificado: {format(parseISO(meeting.plannedStartTime), 'HH:mm')}h</p>
-                                      <p>Real: {format(parseISO(meeting.actualStartTime), 'HH:mm')}h</p>
-                                    </>
-                                  )}
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-muted-foreground hover:text-destructive">
-                                <Trash2 className="w-4 h-4" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar esta reunión?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente la reunión del <strong>{format(parseISO(meeting.date), "d 'de' MMMM", { locale: es })}</strong>.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteMeeting(meeting.id)}>Sí, eliminar</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                  </CardHeader>
-                  <CardContent className="flex-grow space-y-4">
-                    <div className="flex items-center gap-4">
-                        <User className="w-5 h-5 text-muted-foreground" />
-                        <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                                <AvatarImage src={presenter?.avatarUrl} />
-                                <AvatarFallback>{presenter?.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="text-sm font-medium">{presenter?.name || 'N/A'}</p>
-                                <p className="text-xs text-muted-foreground">Presentador</p>
-                            </div>
-                        </div>
-                    </div>
-                     <div className="flex items-center gap-4">
-                        <Mic className="w-5 h-5 text-muted-foreground" />
-                        <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                                <AvatarImage src={secretary?.avatarUrl} />
-                                <AvatarFallback>{secretary?.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                             <div>
-                                <p className="text-sm font-medium">{secretary?.name || 'N/A'}</p>
-                                <p className="text-xs text-muted-foreground">Secretario</p>
-                            </div>
-                        </div>
-                    </div>
-                    {efficiencyScore > 0 && (
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2 text-sm font-semibold"><Star className="w-4 h-4"/> Puntuación de Eficiencia</Label>
-                            <div className="flex items-center gap-2">
-                                <Progress value={efficiencyScore} />
-                                <span className="font-bold text-lg">{efficiencyScore}%</span>
-                            </div>
-                        </div>
-                    )}
-                    <div>
-                        <Accordion type="single" collapsible className="w-full -mx-1">
-                             <AccordionItem value="asistencia">
-                                <AccordionTrigger className="text-sm font-semibold px-1">
-                                    Detalle de Asistencia
-                                </AccordionTrigger>
-                                <AccordionContent className="text-xs text-muted-foreground space-y-2">
-                                     <ScrollArea className="h-32">
-                                        <div className="space-y-2 pr-4">
-                                        {(meeting.attendance || []).map(record => {
-                                            const member = members.find(m => m.id === record.memberId);
-                                            if (!member) return null;
-                                            return (
-                                                <div key={record.memberId} className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <Avatar className="h-6 w-6">
-                                                            <AvatarImage src={member.avatarUrl} />
-                                                            <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                                                        </Avatar>
-                                                        <span>{member.name}</span>
-                                                    </div>
-                                                    {record.status === 'present' ? (
-                                                        <Badge variant="secondary" className="flex items-center gap-1">
-                                                            {record.location === 'physical' ? <Building className="h-3 w-3"/> : <Laptop className="h-3 w-3"/>}
-                                                            {record.location === 'physical' ? 'Físico' : 'Online'}
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline">Ausente</Badge>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
+                        <AccordionTrigger className="w-full p-6 text-left hover:no-underline">
+                            <div className="flex justify-between items-start w-full pr-8">
+                                <div>
+                                    <CardTitle className="font-headline">{format(parseISO(meeting.date), "d 'de' MMMM, yyyy", { locale: es })}</CardTitle>
+                                    <CardDescription className="flex flex-col items-start gap-1 pt-1 text-xs">
+                                        <div className="flex items-center gap-2">
+                                        <Clock className="w-4 h-4" /> 
+                                        <span>
+                                            {meeting.actualStartTime ? format(parseISO(meeting.actualStartTime), 'HH:mm') : ''}h - {meeting.endTime ? format(parseISO(meeting.endTime), 'HH:mm')+'h' : ''}
+                                            ({formatTime(totalDuration)})
+                                        </span>
                                         </div>
-                                    </ScrollArea>
-                                </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="temas">
-                                <AccordionTrigger className="text-sm font-semibold px-1">Temas y Resúmenes</AccordionTrigger>
-                                <AccordionContent>
-                                    <ScrollArea className="h-40">
-                                    <Accordion type="single" collapsible className="w-full">
-                                            {meeting.agenda.map(topic => (
-                                                <AccordionItem value={topic.id} key={topic.id}>
-                                                    <AccordionTrigger className="text-sm py-2">
-                                                    <div className="flex justify-between w-full pr-2">
-                                                        <span className="truncate flex-1 text-left">{topic.title}</span>
-                                                        <span className="text-muted-foreground ml-2">
-                                                        {formatTime(topic.actualDuration)} / {topic.estimatedDuration} min
-                                                        </span>
-                                                    </div>
-                                                    </AccordionTrigger>
-                                                    <AccordionContent className="text-xs text-muted-foreground space-y-2 pl-4">
-                                                    {topic.summary ? (
-                                                            <div className="p-2 bg-muted/50 rounded-md">
-                                                                <p className="font-semibold flex items-center gap-1"><Sparkles className="w-3 h-3 text-primary" /> Resumen IA</p>
-                                                                <p className="whitespace-pre-wrap">{topic.summary}</p>
+                                        <div className="flex items-center gap-2">
+                                            <Users className="w-4 h-4" />
+                                            <span>
+                                                {attendanceDetails.presentCount}/{attendanceDetails.totalCount} Asist. ({attendanceDetails.percentage}%)
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Building className="w-4 h-4" /> 
+                                            <span>{attendanceDetails.physicalCount} Físico / {attendanceDetails.onlineCount} Online</span>
+                                        </div>
+                                    </CardDescription>
+                                </div>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className={`flex items-center gap-1 text-xs font-semibold ${punctuality.color}`}>
+                                                    <AlertCircle className={`w-4 h-4 ${punctuality.iconColor}`} />
+                                                    <span>{punctuality.text}</span>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                            {meeting.plannedStartTime && meeting.actualStartTime && (
+                                                <>
+                                                <p>Planificado: {format(parseISO(meeting.plannedStartTime), 'HH:mm')}h</p>
+                                                <p>Real: {format(parseISO(meeting.actualStartTime), 'HH:mm')}h</p>
+                                                </>
+                                            )}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <CardContent className="pt-0 space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <User className="w-5 h-5 text-muted-foreground" />
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={presenter?.avatarUrl} />
+                                            <AvatarFallback>{presenter?.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="text-sm font-medium">{presenter?.name || 'N/A'}</p>
+                                            <p className="text-xs text-muted-foreground">Presentador</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <Mic className="w-5 h-5 text-muted-foreground" />
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={secretary?.avatarUrl} />
+                                            <AvatarFallback>{secretary?.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="text-sm font-medium">{secretary?.name || 'N/A'}</p>
+                                            <p className="text-xs text-muted-foreground">Secretario</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {efficiencyScore > 0 && (
+                                    <div className="space-y-2">
+                                        <Label className="flex items-center gap-2 text-sm font-semibold"><Star className="w-4 h-4"/> Puntuación de Eficiencia</Label>
+                                        <div className="flex items-center gap-2">
+                                            <Progress value={efficiencyScore} />
+                                            <span className="font-bold text-lg">{efficiencyScore}%</span>
+                                        </div>
+                                    </div>
+                                )}
+                                <div>
+                                    <Accordion type="single" collapsible className="w-full -mx-1">
+                                        <AccordionItem value="asistencia">
+                                            <AccordionTrigger className="text-sm font-semibold px-1">
+                                                Detalle de Asistencia
+                                            </AccordionTrigger>
+                                            <AccordionContent className="text-xs text-muted-foreground space-y-2">
+                                                <ScrollArea className="h-32">
+                                                    <div className="space-y-2 pr-4">
+                                                    {(meeting.attendance || []).map(record => {
+                                                        const member = members.find(m => m.id === record.memberId);
+                                                        if (!member) return null;
+                                                        return (
+                                                            <div key={record.memberId} className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Avatar className="h-6 w-6">
+                                                                        <AvatarImage src={member.avatarUrl} />
+                                                                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                                                    </Avatar>
+                                                                    <span>{member.name}</span>
+                                                                </div>
+                                                                {record.status === 'present' ? (
+                                                                    <Badge variant="secondary" className="flex items-center gap-1">
+                                                                        {record.location === 'physical' ? <Building className="h-3 w-3"/> : <Laptop className="h-3 w-3"/>}
+                                                                        {record.location === 'physical' ? 'Físico' : 'Online'}
+                                                                    </Badge>
+                                                                ) : (
+                                                                    <Badge variant="outline">Ausente</Badge>
+                                                                )}
                                                             </div>
-                                                    ) : (
-                                                        <p>No se generó un resumen para este tema.</p>
-                                                    )}
-                                                    </AccordionContent>
-                                                </AccordionItem>
-                                            ))}
-                                        </Accordion>
-                                    </ScrollArea>
-                                </AccordionContent>
-                            </AccordionItem>
-                             {meeting.surveyResults && meeting.surveyResults.length > 0 && (
-                                <AccordionItem value="efficiency">
-                                    <AccordionTrigger className="text-sm font-semibold px-1">Detalle de Eficiencia</AccordionTrigger>
-                                    <AccordionContent className="text-xs text-muted-foreground space-y-2">
-                                        <ScrollArea className="h-32">
-                                            <div className="space-y-3 pr-4">
-                                            {meeting.surveyResults.map(result => {
-                                                const criterion = surveyCriteria.find(c => c.id === result.criterionId);
-                                                if (!criterion) return null;
-                                                const scoreColor = result.score === 2 ? 'text-green-500' : result.score === 1 ? 'text-yellow-500' : 'text-red-500';
-                                                const ScoreIcon = result.score === 2 ? TrendingUp : result.score === 1 ? User : TrendingDown;
-                                                return (
-                                                    <div key={result.criterionId} className="flex items-center justify-between">
-                                                        <span>{criterion.name}</span>
-                                                        <div className={`flex items-center gap-1 font-bold ${scoreColor}`}>
-                                                            <ScoreIcon className="w-4 h-4" />
-                                                            <span>{result.score}/2</span>
-                                                        </div>
+                                                        );
+                                                    })}
                                                     </div>
-                                                );
-                                            })}
-                                            </div>
-                                        </ScrollArea>
-                                    </AccordionContent>
-                                </AccordionItem>
-                             )}
-                        </Accordion>
-                    </div>
-                  </CardContent>
-                </Card>
+                                                </ScrollArea>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                        <AccordionItem value="temas">
+                                            <AccordionTrigger className="text-sm font-semibold px-1">Temas y Resúmenes</AccordionTrigger>
+                                            <AccordionContent>
+                                                <ScrollArea className="h-40">
+                                                <Accordion type="single" collapsible className="w-full">
+                                                        {meeting.agenda.map(topic => (
+                                                            <AccordionItem value={topic.id} key={topic.id}>
+                                                                <AccordionTrigger className="text-sm py-2">
+                                                                <div className="flex justify-between w-full pr-2">
+                                                                    <span className="truncate flex-1 text-left">{topic.title}</span>
+                                                                    <span className="text-muted-foreground ml-2">
+                                                                    {formatTime(topic.actualDuration)} / {topic.estimatedDuration} min
+                                                                    </span>
+                                                                </div>
+                                                                </AccordionTrigger>
+                                                                <AccordionContent className="text-xs text-muted-foreground space-y-2 pl-4">
+                                                                {topic.summary ? (
+                                                                        <div className="p-2 bg-muted/50 rounded-md">
+                                                                            <p className="font-semibold flex items-center gap-1"><Sparkles className="w-3 h-3 text-primary" /> Resumen IA</p>
+                                                                            <p className="whitespace-pre-wrap">{topic.summary}</p>
+                                                                        </div>
+                                                                ) : (
+                                                                    <p>No se generó un resumen para este tema.</p>
+                                                                )}
+                                                                </AccordionContent>
+                                                            </AccordionItem>
+                                                        ))}
+                                                    </Accordion>
+                                                </ScrollArea>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                        {meeting.surveyResults && meeting.surveyResults.length > 0 && (
+                                            <AccordionItem value="efficiency">
+                                                <AccordionTrigger className="text-sm font-semibold px-1">Detalle de Eficiencia</AccordionTrigger>
+                                                <AccordionContent className="text-xs text-muted-foreground space-y-2">
+                                                    <ScrollArea className="h-32">
+                                                        <div className="space-y-3 pr-4">
+                                                        {meeting.surveyResults.map(result => {
+                                                            const criterion = surveyCriteria.find(c => c.id === result.criterionId);
+                                                            if (!criterion) return null;
+                                                            const scoreColor = result.score === 2 ? 'text-green-500' : result.score === 1 ? 'text-yellow-500' : 'text-red-500';
+                                                            const ScoreIcon = result.score === 2 ? TrendingUp : result.score === 1 ? User : TrendingDown;
+                                                            return (
+                                                                <div key={result.criterionId} className="flex items-center justify-between">
+                                                                    <span>{criterion.name}</span>
+                                                                    <div className={`flex items-center gap-1 font-bold ${scoreColor}`}>
+                                                                        <ScoreIcon className="w-4 h-4" />
+                                                                        <span>{result.score}/2</span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        </div>
+                                                    </ScrollArea>
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        )}
+                                    </Accordion>
+                                </div>
+                            </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
               );
             })}
-          </div>
+          </Accordion>
         )}
       </div>
     </main>
