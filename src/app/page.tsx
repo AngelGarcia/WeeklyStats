@@ -43,7 +43,8 @@ export default function MeetingDashboardPage() {
     lastMeetingSummary,
     isLoading,
     saveStatus,
-    surveyCriteria
+    surveyCriteria,
+    saveEditedMeeting,
   } = useAppContext();
 
   const [newTopicTitle, setNewTopicTitle] = useState('');
@@ -92,6 +93,7 @@ export default function MeetingDashboardPage() {
     date,
     plannedStartTime,
     actualStartTime,
+    endTime,
     attendance
   } = currentMeeting;
 
@@ -172,237 +174,247 @@ export default function MeetingDashboardPage() {
     }
   };
 
-  const renderSetup = () => (
-    <Card className="max-w-6xl mx-auto shadow-lg">
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl flex items-center gap-2"><Users /> Configurar Reunión</CardTitle>
-        <CardDescription>Define los detalles, la agenda y la asistencia para la nueva reunión.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        
-        {/* Left Column */}
-        <div className="lg:col-span-3 space-y-6">
-          <div className="space-y-2">
-            <Label>Fecha y Hora</Label>
-            <div className="flex gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !meetingDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {meetingDate ? format(meetingDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={meetingDate}
-                    onSelect={handleDateChange}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <Input
-                  type="time"
-                  value={meetingTime}
-                  onChange={(e) => handleTimeChange(e.target.value)}
-                  className="w-[120px]"
-              />
-            </div>
-          </div>
+  const renderSetup = () => {
+    const isEditSession = meetingStatus === 'SETUP' && !!endTime;
 
-          <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="presenter">Presentador</Label>
+    return (
+        <Card className="max-w-6xl mx-auto shadow-lg">
+        <CardHeader>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2"><Users /> Configurar Reunión</CardTitle>
+            <CardDescription>Define los detalles, la agenda y la asistencia para la nueva reunión.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            
+            {/* Left Column */}
+            <div className="lg:col-span-3 space-y-6">
+            <div className="space-y-2">
+                <Label>Fecha y Hora</Label>
                 <div className="flex gap-2">
-                  <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })} value={presenterId || ''}>
-                    <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
-                    <SelectContent>
-                      {sortedMembers.map(member => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.name} {member.id === suggestedPresenterId && '(Sugerido)'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <RoleSuggester
-                    role="presenter"
-                    members={members}
-                    attendance={attendance}
-                    onSelect={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">El presentador de esta semana suele ser el secretario de la anterior.</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="secretary">Secretario</Label>
-                <div className="flex gap-2">
-                  <Select onValueChange={(id) => updateCurrentMeeting({ secretaryId: id })} value={secretaryId || ''} disabled={!presenterId}>
-                      <SelectTrigger id="secretary">
-                        <SelectValue placeholder={!presenterId ? "Primero elige presentador" : "Seleccionar secretario..."} />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {availableMembersForSecretary.map(member => (
-                              <SelectItem key={member.id} value={member.id}>
-                                  {member.name}
-                              </SelectItem>
-                          ))}
-                      </SelectContent>
-                  </Select>
-                  <RoleSuggester
-                      role="secretary"
-                      members={members}
-                      attendance={attendance}
-                      excludeId={presenterId}
-                      onSelect={(id) => updateCurrentMeeting({ secretaryId: id })}
-                      disabled={!presenterId}
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        variant={"outline"}
+                        className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !meetingDate && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {meetingDate ? format(meetingDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={meetingDate}
+                        onSelect={handleDateChange}
+                        initialFocus
                     />
+                    </PopoverContent>
+                </Popover>
+                <Input
+                    type="time"
+                    value={meetingTime}
+                    onChange={(e) => handleTimeChange(e.target.value)}
+                    className="w-[120px]"
+                />
                 </div>
-                <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>
-              </div>
-          </div>
-          
-          <Separator />
-          
-          {/* Agenda Section */}
-          <div>
-            <Label className="text-lg font-medium">Agenda</Label>
-            <form onSubmit={handleAddTopic} className="space-y-3 mt-2 border p-4 rounded-lg">
-              <div className="space-y-1">
-                <Label htmlFor="topic-title">Título del Tema</Label>
-                <Input id="topic-title" placeholder="Ej: Revisión de métricas de ventas" value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="topic-description">Resumen / Descripción (Opcional)</Label>
-                <Textarea id="topic-description" placeholder="Añade un breve resumen sobre el tema..." value={newTopicDescription} onChange={e => setNewTopicDescription(e.target.value)} rows={2} />
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div className='space-y-1'>
-                    <Label htmlFor="topic-presenter">Encargado</Label>
-                    <Select value={newTopicPresenterId} onValueChange={setNewTopicPresenterId}>
-                        <SelectTrigger id="topic-presenter">
-                            <SelectValue placeholder="Encargado..." />
+            </div>
+
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="presenter">Presentador</Label>
+                    <div className="flex gap-2">
+                    <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })} value={presenterId || ''}>
+                        <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
+                        <SelectContent>
+                        {sortedMembers.map(member => (
+                            <SelectItem key={member.id} value={member.id}>
+                            {member.name} {member.id === suggestedPresenterId && '(Sugerido)'}
+                            </SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <RoleSuggester
+                        role="presenter"
+                        members={members}
+                        attendance={attendance}
+                        onSelect={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })}
+                    />
+                    </div>
+                    <p className="text-xs text-muted-foreground">El presentador de esta semana suele ser el secretario de la anterior.</p>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="secretary">Secretario</Label>
+                    <div className="flex gap-2">
+                    <Select onValueChange={(id) => updateCurrentMeeting({ secretaryId: id })} value={secretaryId || ''} disabled={!presenterId}>
+                        <SelectTrigger id="secretary">
+                            <SelectValue placeholder={!presenterId ? "Primero elige presentador" : "Seleccionar secretario..."} />
                         </SelectTrigger>
                         <SelectContent>
-                            {sortedMembers.map(member => (
+                            {availableMembersForSecretary.map(member => (
                                 <SelectItem key={member.id} value={member.id}>
                                     {member.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
+                    <RoleSuggester
+                        role="secretary"
+                        members={members}
+                        attendance={attendance}
+                        excludeId={presenterId}
+                        onSelect={(id) => updateCurrentMeeting({ secretaryId: id })}
+                        disabled={!presenterId}
+                        />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>
+                </div>
+            </div>
+            
+            <Separator />
+            
+            {/* Agenda Section */}
+            <div>
+                <Label className="text-lg font-medium">Agenda</Label>
+                <form onSubmit={handleAddTopic} className="space-y-3 mt-2 border p-4 rounded-lg">
+                <div className="space-y-1">
+                    <Label htmlFor="topic-title">Título del Tema</Label>
+                    <Input id="topic-title" placeholder="Ej: Revisión de métricas de ventas" value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="topic-duration">Duración (min)</Label>
-                  <Input id="topic-duration" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} />
+                    <Label htmlFor="topic-description">Resumen / Descripción (Opcional)</Label>
+                    <Textarea id="topic-description" placeholder="Añade un breve resumen sobre el tema..." value={newTopicDescription} onChange={e => setNewTopicDescription(e.target.value)} rows={2} />
                 </div>
-              </div>
-              <Button type="submit" className="w-full sm:w-auto" disabled={!newTopicTitle || !newTopicPresenterId}><PlusCircle className="mr-2" /> Añadir Tema</Button>
-            </form>
-            <div className="space-y-2 mt-4">
-              {agenda.length === 0 && <p className="text-muted-foreground text-center py-4">Aún no hay temas en la agenda.</p>}
-              {agenda.map(topic => {
-                const topicPresenter = members.find(m => m.id === topic.presenterId);
-                return (
-                <div key={topic.id} className="flex items-start gap-2 p-3 rounded-md border">
-                    <div className="flex-shrink-0 pt-1">
-                      {topicPresenter ? (
-                          <Avatar className="h-6 w-6">
-                              <AvatarImage src={topicPresenter.avatarUrl} alt={topicPresenter.name} />
-                              <AvatarFallback>{topicPresenter.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                      ) : <UserIcon className="w-6 h-6 text-muted-foreground" />}
+                <div className="grid sm:grid-cols-2 gap-3">
+                    <div className='space-y-1'>
+                        <Label htmlFor="topic-presenter">Encargado</Label>
+                        <Select value={newTopicPresenterId} onValueChange={setNewTopicPresenterId}>
+                            <SelectTrigger id="topic-presenter">
+                                <SelectValue placeholder="Encargado..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {sortedMembers.map(member => (
+                                    <SelectItem key={member.id} value={member.id}>
+                                        {member.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <p className="font-semibold">{topic.title}</p>
-                      {topic.description && <p className="text-sm text-muted-foreground">{topic.description}</p>}
-                      <p className="text-xs text-muted-foreground">{topicPresenter?.name} - {topic.estimatedDuration} min</p>
+                    <div className="space-y-1">
+                    <Label htmlFor="topic-duration">Duración (min)</Label>
+                    <Input id="topic-duration" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} />
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => removeTopic(topic.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0">
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
                 </div>
-              )})}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column */}
-        <div className="lg:col-span-2 space-y-3">
-            <Label className="text-lg font-medium">Asistencia</Label>
-            <div className="space-y-3 mt-2">
-                {sortedMembers.map(member => {
-                    const memberAttendance = attendance?.find(a => a.memberId === member.id);
-                    const isAbsent = memberAttendance?.status === 'absent';
-                    const isOnline = !isAbsent && memberAttendance?.location === 'online';
-
+                <Button type="submit" className="w-full sm:w-auto" disabled={!newTopicTitle || !newTopicPresenterId}><PlusCircle className="mr-2" /> Añadir Tema</Button>
+                </form>
+                <div className="space-y-2 mt-4">
+                {agenda.length === 0 && <p className="text-muted-foreground text-center py-4">Aún no hay temas en la agenda.</p>}
+                {agenda.map(topic => {
+                    const topicPresenter = members.find(m => m.id === topic.presenterId);
                     return (
-                        <div 
-                            key={member.id} 
-                            className={cn(
-                                "flex flex-col sm:flex-row items-center justify-between gap-x-4 gap-y-2 p-3 border rounded-md transition-colors",
-                                isAbsent && "bg-muted/50"
-                            )}
-                        >
-                            <div className="flex items-center flex-1">
-                                <span className={cn("font-medium", isAbsent && "text-muted-foreground")}>{member.name}</span>
-                            </div>
-                            <div className="flex items-center gap-x-4 gap-y-2">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id={`absent-${member.id}`}
-                                        checked={isAbsent}
-                                        onCheckedChange={(checked) => {
-                                            if (checked) {
-                                                handleAttendanceChange(member.id, 'absent');
-                                            } else {
-                                                handleAttendanceChange(member.id, 'present', 'physical');
-                                            }
-                                        }}
-                                    />
-                                    <Label htmlFor={`absent-${member.id}`} className="font-normal cursor-pointer text-muted-foreground">Ausente</Label>
-                                </div>
-
-                                <div className={cn("flex items-center gap-3", isAbsent && "invisible")}>
-                                    <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
-                                        <span>Oficina</span>
-                                        <Building className="h-5 w-5" />
-                                    </div>
-                                    <Switch
-                                        id={`location-${member.id}`}
-                                        checked={isOnline}
-                                        onCheckedChange={(checked) => {
-                                            handleAttendanceChange(member.id, 'present', checked ? 'online' : 'physical');
-                                        }}
-                                        disabled={isAbsent}
-                                        aria-label="Cambiar entre asistencia física y online"
-                                    />
-                                    <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
-                                        <span>Casa</span>
-                                        <Home className="h-5 w-5" />
-                                    </div>
-                                </div>
-                            </div>
+                    <div key={topic.id} className="flex items-start gap-2 p-3 rounded-md border">
+                        <div className="flex-shrink-0 pt-1">
+                        {topicPresenter ? (
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={topicPresenter.avatarUrl} alt={topicPresenter.name} />
+                                <AvatarFallback>{topicPresenter.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                        ) : <UserIcon className="w-6 h-6 text-muted-foreground" />}
                         </div>
-                    );
-                })}
+                        <div className="flex-1 space-y-1">
+                        <p className="font-semibold">{topic.title}</p>
+                        {topic.description && <p className="text-sm text-muted-foreground">{topic.description}</p>}
+                        <p className="text-xs text-muted-foreground">{topicPresenter?.name} - {topic.estimatedDuration} min</p>
+                        </div>
+                        <Button size="icon" variant="ghost" onClick={() => removeTopic(topic.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )})}
+                </div>
             </div>
-        </div>
+            </div>
 
-      </CardContent>
-      <CardFooter className="justify-between items-center pt-6">
-        <SaveStatusIndicator />
-        <Button onClick={startMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
-          <Play className="mr-2" /> Iniciar Reunión
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+            {/* Right Column */}
+            <div className="lg:col-span-2 space-y-3">
+                <Label className="text-lg font-medium">Asistencia</Label>
+                <div className="space-y-3 mt-2">
+                    {sortedMembers.map(member => {
+                        const memberAttendance = attendance?.find(a => a.memberId === member.id);
+                        const isAbsent = memberAttendance?.status === 'absent';
+                        const isOnline = !isAbsent && memberAttendance?.location === 'online';
+
+                        return (
+                            <div 
+                                key={member.id} 
+                                className={cn(
+                                    "flex flex-col sm:flex-row items-center justify-between gap-x-4 gap-y-2 p-3 border rounded-md transition-colors",
+                                    isAbsent && "bg-muted/50"
+                                )}
+                            >
+                                <div className="flex items-center flex-1">
+                                    <span className={cn("font-medium", isAbsent && "text-muted-foreground")}>{member.name}</span>
+                                </div>
+                                <div className="flex items-center gap-x-4 gap-y-2">
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`absent-${member.id}`}
+                                            checked={isAbsent}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    handleAttendanceChange(member.id, 'absent');
+                                                } else {
+                                                    handleAttendanceChange(member.id, 'present', 'physical');
+                                                }
+                                            }}
+                                        />
+                                        <Label htmlFor={`absent-${member.id}`} className="font-normal cursor-pointer text-muted-foreground">Ausente</Label>
+                                    </div>
+
+                                    <div className={cn("flex items-center gap-3", isAbsent && "invisible")}>
+                                        <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
+                                            <span>Oficina</span>
+                                            <Building className="h-5 w-5" />
+                                        </div>
+                                        <Switch
+                                            id={`location-${member.id}`}
+                                            checked={isOnline}
+                                            onCheckedChange={(checked) => {
+                                                handleAttendanceChange(member.id, 'present', checked ? 'online' : 'physical');
+                                            }}
+                                            disabled={isAbsent}
+                                            aria-label="Cambiar entre asistencia física y online"
+                                        />
+                                        <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
+                                            <span>Casa</span>
+                                            <Home className="h-5 w-5" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+        </CardContent>
+        <CardFooter className="justify-between items-center pt-6">
+            <SaveStatusIndicator />
+            {isEditSession ? (
+                <Button onClick={saveEditedMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
+                    <Check className="mr-2" /> Guardar Cambios y Finalizar
+                </Button>
+            ) : (
+                <Button onClick={startMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
+                    <Play className="mr-2" /> Iniciar Reunión
+                </Button>
+            )}
+        </CardFooter>
+        </Card>
+    );
+  }
 
   const renderInProgress = () => (
     <div className="space-y-8">

@@ -40,6 +40,7 @@ type AppContextType = AppState & {
   clearHistory: () => Promise<void>;
   deleteMeeting: (id: string) => void;
   reopenMeeting: (id: string) => Promise<void>;
+  saveEditedMeeting: () => Promise<void>;
   isInitialized: boolean;
   updateCurrentMeeting: (payload: Partial<Meeting>) => void;
   lastMeetingSummary: Meeting | null;
@@ -323,48 +324,93 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentMeeting, updateCurrentMeeting]);
 
+  const finalizeMeetingAndUpdateStats = useCallback(async (finalMeetingData: Meeting) => {
+    if (!firestore || !members) {
+        console.error("Firestore or members not available");
+        setSaveStatus('error');
+        throw new Error("Firestore or members not available");
+    }
+
+    setSaveStatus('saving');
+    try {
+        const batch = writeBatch(firestore);
+
+        const meetingRef = doc(firestore, 'meetings', finalMeetingData.id);
+        const { id, ...meetingData } = finalMeetingData;
+        batch.set(meetingRef, meetingData, { merge: true });
+
+        const { presenterId, secretaryId, agenda } = finalMeetingData;
+
+        if (presenterId) {
+            const presenter = members.find(m => m.id === presenterId);
+            if (presenter) {
+                const memberRef = doc(firestore, 'members', presenter.id);
+                batch.update(memberRef, { presenterCount: (presenter.presenterCount || 0) + 1 });
+            }
+        }
+        
+        if (secretaryId) {
+            const secretary = members.find(m => m.id === secretaryId);
+            if (secretary) {
+                const memberRef = doc(firestore, 'members', secretary.id);
+                batch.update(memberRef, { volunteerCount: (secretary.volunteerCount || 0) + 1 });
+            }
+        }
+
+        const topicCounts = agenda.reduce((acc, topic) => {
+            if (topic.presenterId) {
+                acc[topic.presenterId] = (acc[topic.presenterId] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+        for (const memberId in topicCounts) {
+            const member = members.find(m => m.id === memberId);
+            if (member) {
+                const memberRef = doc(firestore, 'members', memberId);
+                const newCount = (member.topicPresenterCount || 0) + topicCounts[memberId];
+                batch.update(memberRef, { topicPresenterCount: newCount });
+            }
+        }
+
+        await batch.commit();
+        setSaveStatus('saved');
+        
+        setLastMeetingSummary(finalMeetingData);
+        setCurrentMeeting(null);
+
+    } catch(e) {
+        console.error("Failed to finalize meeting and update stats", e);
+        setSaveStatus('error');
+        throw e;
+    }
+  }, [firestore, members]);
+
+  const saveEditedMeeting = useCallback(async () => {
+      if (!currentMeeting) return;
+      
+      const finalMeeting = {
+        ...currentMeeting,
+        status: 'COMPLETED' as MeetingStatus,
+      };
+
+      await finalizeMeetingAndUpdateStats(finalMeeting);
+
+  }, [currentMeeting, finalizeMeetingAndUpdateStats]);
 
   const completeSurvey = useCallback(async (surveyResults: SurveyResult[]) => {
-    if (!firestore || !currentMeeting) return;
-    const { presenterId, secretaryId, agenda } = currentMeeting;
+    if (!currentMeeting) return;
     
-    // Finalize meeting data
     const finalMeeting = {
       ...currentMeeting,
       status: 'COMPLETED' as MeetingStatus,
       endTime: new Date().toISOString(),
       surveyResults,
     };
-    updateCurrentMeetingState(finalMeeting);
-    setLastMeetingSummary(finalMeeting);
-    setCurrentMeeting(null); // Clear current meeting so a new one can be created
     
-    // Update member stats
-    const presenter = members.find((m) => m.id === presenterId);
-    const secretary = members.find((m) => m.id === secretaryId);
-
-    if (presenter) {
-        updateMember({ ...presenter, presenterCount: (presenter.presenterCount || 0) + 1 });
-    }
-    if (secretary) {
-        updateMember({ ...secretary, volunteerCount: (secretary.volunteerCount || 0) + 1 });
-    }
-
-    const topicCounts = agenda.reduce((acc, topic) => {
-        if (topic.presenterId) {
-            acc[topic.presenterId] = (acc[topic.presenterId] || 0) + 1;
-        }
-        return acc;
-    }, {} as Record<string, number>);
-
-    members.forEach(member => {
-        if (topicCounts[member.id]) {
-            const updatedMember = { ...member, topicPresenterCount: (member.topicPresenterCount || 0) + topicCounts[member.id] };
-            updateMember(updatedMember);
-        }
-    });
-
-  }, [currentMeeting, members, firestore, updateCurrentMeetingState, updateMember]);
+    await finalizeMeetingAndUpdateStats(finalMeeting);
+    
+  }, [currentMeeting, finalizeMeetingAndUpdateStats]);
   
   const clearHistory = useCallback(async () => {
     if (!firestore || !completedMeetings || !members) return;
@@ -606,6 +652,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       clearHistory,
       deleteMeeting,
       reopenMeeting,
+      saveEditedMeeting,
       isInitialized,
       isLoading,
       updateCurrentMeeting,
@@ -631,6 +678,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         clearHistory, 
         deleteMeeting,
         reopenMeeting,
+        saveEditedMeeting,
         isInitialized,
         isLoading, 
         updateCurrentMeeting,
