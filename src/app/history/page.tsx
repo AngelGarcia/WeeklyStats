@@ -135,7 +135,16 @@ export default function HistoryPage() {
             {sortedMeetings.map(meeting => {
               const presenter = members.find(m => m.id === meeting.presenterId);
               const secretary = members.find(m => m.id === meeting.secretaryId);
-              const totalDuration = meeting.agenda.reduce((acc, topic) => acc + topic.actualDuration, 0);
+              
+              let totalDuration;
+              if (meeting.endTime && meeting.actualStartTime) {
+                  const end = parseISO(meeting.endTime);
+                  const start = parseISO(meeting.actualStartTime);
+                  totalDuration = Math.round((end.getTime() - start.getTime()) / 1000);
+              } else {
+                  totalDuration = meeting.agenda.reduce((acc, topic) => acc + topic.actualDuration, 0);
+              }
+              
               const punctuality = getPunctuality(meeting);
               const efficiencyScore = calculateEfficiencyScore(meeting.surveyResults);
               const attendanceDetails = getAttendanceDetails(meeting.attendance);
