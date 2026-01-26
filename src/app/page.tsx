@@ -373,9 +373,9 @@ export default function MeetingDashboardPage() {
                                 </div>
 
                                 <div className={cn("flex items-center gap-3", isAbsent && "invisible")}>
-                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
+                                        <span>Físico</span>
                                         <Building className="h-5 w-5" />
-                                        <span className="text-sm font-normal">Físico</span>
                                     </div>
                                     <Switch
                                         id={`location-${member.id}`}
@@ -386,9 +386,9 @@ export default function MeetingDashboardPage() {
                                         disabled={isAbsent}
                                         aria-label="Cambiar entre asistencia física y online"
                                     />
-                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
+                                        <span>Online</span>
                                         <Laptop className="h-5 w-5" />
-                                        <span className="text-sm font-normal">Online</span>
                                     </div>
                                 </div>
                             </div>
