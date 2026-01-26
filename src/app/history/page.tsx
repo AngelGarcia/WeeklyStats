@@ -223,7 +223,7 @@ export default function HistoryPage() {
                             </AlertDialog>
                         </div>
                         <AccordionTrigger className="w-full p-6 text-left hover:no-underline">
-                             <div className="flex items-start w-full pr-8">
+                             <div className="flex items-start w-full">
                                 <div className="flex-1">
                                     <CardTitle className="font-headline">{format(parseISO(meeting.date), "d 'de' MMMM, yyyy", { locale: es })}</CardTitle>
                                     <CardDescription className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-1 pt-1 text-xs">
@@ -246,27 +246,27 @@ export default function HistoryPage() {
                                                 <span>Efic. {efficiencyScore}%</span>
                                             </div>
                                         )}
+                                        <div onClick={(e) => e.stopPropagation()}>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className={`flex items-center gap-1 text-xs font-semibold ${punctuality.color}`}>
+                                                            <AlertCircle className={`w-4 h-4 ${punctuality.iconColor}`} />
+                                                            <span>{punctuality.text}</span>
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                    {meeting.plannedStartTime && meeting.actualStartTime && (
+                                                        <>
+                                                        <p>Planificado: {format(parseISO(meeting.plannedStartTime), 'HH:mm')}h</p>
+                                                        <p>Real: {format(parseISO(meeting.actualStartTime), 'HH:mm')}h</p>
+                                                        </>
+                                                    )}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                     </CardDescription>
-                                </div>
-                                <div className="pl-4 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div className={`flex items-center gap-1 text-xs font-semibold ${punctuality.color}`}>
-                                                    <AlertCircle className={`w-4 h-4 ${punctuality.iconColor}`} />
-                                                    <span>{punctuality.text}</span>
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                            {meeting.plannedStartTime && meeting.actualStartTime && (
-                                                <>
-                                                <p>Planificado: {format(parseISO(meeting.plannedStartTime), 'HH:mm')}h</p>
-                                                <p>Real: {format(parseISO(meeting.actualStartTime), 'HH:mm')}h</p>
-                                                </>
-                                            )}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
                                 </div>
                             </div>
                         </AccordionTrigger>
