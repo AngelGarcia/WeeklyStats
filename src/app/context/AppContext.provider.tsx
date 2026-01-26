@@ -65,16 +65,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { isUserLoading } = useUser();
 
   // --- Data fetching ---
-  const membersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'members') : null, [firestore]);
+  const membersCollection = useMemoFirebase(() => 
+    firestore && !isUserLoading ? collection(firestore, 'members') : null, 
+  [firestore, isUserLoading]);
   const { data: membersFromDb, isLoading: membersLoading } = useCollection<Member>(membersCollection);
 
-  const meetingsQuery = useMemoFirebase(() => firestore 
-    ? query(collection(firestore, 'meetings'), orderBy('date', 'desc'))
-    : null, 
-  [firestore]);
+  const meetingsQuery = useMemoFirebase(() => 
+    firestore && !isUserLoading
+      ? query(collection(firestore, 'meetings'), orderBy('date', 'desc'))
+      : null, 
+  [firestore, isUserLoading]);
   const { data: allMeetings, isLoading: meetingsLoading } = useCollection<Meeting>(meetingsQuery);
 
-  const criteriaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'surveyCriteria') : null, [firestore]);
+  const criteriaCollection = useMemoFirebase(() => 
+    firestore && !isUserLoading ? collection(firestore, 'surveyCriteria') : null, 
+  [firestore, isUserLoading]);
   const { data: criteriaFromDb, isLoading: criteriaLoading } = useCollection<SurveyCriterion>(criteriaCollection);
 
 
