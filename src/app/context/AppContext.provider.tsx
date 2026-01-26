@@ -380,7 +380,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         setLastMeetingSummary(finalMeetingData);
         setCurrentMeeting(null);
-        setOriginalMeetingOnEdit(null); // Clean up after any finalization
 
     } catch(e) {
         console.error("Failed to finalize meeting and update stats", e);
@@ -398,6 +397,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
 
       await finalizeMeetingAndUpdateStats(finalMeeting);
+      setOriginalMeetingOnEdit(null);
 
   }, [currentMeeting, finalizeMeetingAndUpdateStats]);
 
@@ -412,6 +412,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     
     await finalizeMeetingAndUpdateStats(finalMeeting);
+    setOriginalMeetingOnEdit(null);
     
   }, [currentMeeting, finalizeMeetingAndUpdateStats]);
   
@@ -614,6 +615,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     
     await finalizeMeetingAndUpdateStats(meetingToRestore);
+    setOriginalMeetingOnEdit(null);
   }, [originalMeetingOnEdit, finalizeMeetingAndUpdateStats]);
 
   const updateCriteria = useCallback(async (criteria: SurveyCriterion[]) => {
