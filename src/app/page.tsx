@@ -349,11 +349,7 @@ export default function MeetingDashboardPage() {
                                 isAbsent && "bg-muted/50"
                             )}
                         >
-                            <div className="flex items-center gap-3 flex-1">
-                                <Avatar className={cn("transition-opacity", isAbsent && "opacity-50")}>
-                                    <AvatarImage src={member.avatarUrl} alt={member.name} />
-                                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
+                            <div className="flex items-center flex-1">
                                 <span className={cn("font-medium", isAbsent && "text-muted-foreground")}>{member.name}</span>
                             </div>
                             <div className="flex items-center gap-x-4 gap-y-2">
