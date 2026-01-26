@@ -172,13 +172,16 @@ export default function MeetingDashboardPage() {
   };
 
   const renderSetup = () => (
-    <Card className="max-w-3xl mx-auto shadow-lg">
+    <Card className="max-w-6xl mx-auto shadow-lg">
       <CardHeader>
         <CardTitle className="font-headline text-2xl flex items-center gap-2"><Users /> Configurar Reunión</CardTitle>
         <CardDescription>Define los detalles, la agenda y la asistencia para la nueva reunión.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
+      <CardContent className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        
+        {/* Left Column */}
+        <div className="lg:col-span-3 space-y-6">
+          <div className="space-y-2">
             <Label>Fecha y Hora</Label>
             <div className="flex gap-2">
               <Popover>
@@ -212,125 +215,124 @@ export default function MeetingDashboardPage() {
             </div>
           </div>
 
-        <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="presenter">Presentador</Label>
-               <div className="flex gap-2">
-                <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })} value={presenterId || ''}>
-                  <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
-                  <SelectContent>
-                    {sortedMembers.map(member => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.name} {member.id === suggestedPresenterId && '(Sugerido)'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <RoleSuggester
-                  role="presenter"
-                  members={members}
-                  attendance={attendance}
-                  onSelect={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">El presentador de esta semana suele ser el secretario de la anterior.</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="secretary">Secretario</Label>
-               <div className="flex gap-2">
-                <Select onValueChange={(id) => updateCurrentMeeting({ secretaryId: id })} value={secretaryId || ''} disabled={!presenterId}>
-                    <SelectTrigger id="secretary">
-                      <SelectValue placeholder={!presenterId ? "Primero elige presentador" : "Seleccionar secretario..."} />
-                    </SelectTrigger>
+          <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="presenter">Presentador</Label>
+                <div className="flex gap-2">
+                  <Select onValueChange={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })} value={presenterId || ''}>
+                    <SelectTrigger id="presenter"><SelectValue placeholder="Seleccionar presentador..." /></SelectTrigger>
                     <SelectContent>
-                        {availableMembersForSecretary.map(member => (
-                            <SelectItem key={member.id} value={member.id}>
-                                {member.name}
-                            </SelectItem>
-                        ))}
+                      {sortedMembers.map(member => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.name} {member.id === suggestedPresenterId && '(Sugerido)'}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
-                </Select>
-                 <RoleSuggester
-                    role="secretary"
+                  </Select>
+                  <RoleSuggester
+                    role="presenter"
                     members={members}
                     attendance={attendance}
-                    excludeId={presenterId}
-                    onSelect={(id) => updateCurrentMeeting({ secretaryId: id })}
-                    disabled={!presenterId}
+                    onSelect={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })}
                   />
+                </div>
+                <p className="text-xs text-muted-foreground">El presentador de esta semana suele ser el secretario de la anterior.</p>
               </div>
-              <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>
-            </div>
-        </div>
-        
-        <Separator />
-        
-        {/* Agenda Section */}
-        <div>
-          <Label className="text-lg font-medium">Agenda</Label>
-           <form onSubmit={handleAddTopic} className="space-y-3 mt-2 border p-4 rounded-lg">
-            <div className="space-y-1">
-              <Label htmlFor="topic-title">Título del Tema</Label>
-              <Input id="topic-title" placeholder="Ej: Revisión de métricas de ventas" value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="topic-description">Resumen / Descripción (Opcional)</Label>
-              <Textarea id="topic-description" placeholder="Añade un breve resumen sobre el tema..." value={newTopicDescription} onChange={e => setNewTopicDescription(e.target.value)} rows={2} />
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div className='space-y-1'>
-                  <Label htmlFor="topic-presenter">Encargado</Label>
-                  <Select value={newTopicPresenterId} onValueChange={setNewTopicPresenterId}>
-                      <SelectTrigger id="topic-presenter">
-                          <SelectValue placeholder="Encargado..." />
+              <div className="space-y-2">
+                <Label htmlFor="secretary">Secretario</Label>
+                <div className="flex gap-2">
+                  <Select onValueChange={(id) => updateCurrentMeeting({ secretaryId: id })} value={secretaryId || ''} disabled={!presenterId}>
+                      <SelectTrigger id="secretary">
+                        <SelectValue placeholder={!presenterId ? "Primero elige presentador" : "Seleccionar secretario..."} />
                       </SelectTrigger>
                       <SelectContent>
-                          {sortedMembers.map(member => (
+                          {availableMembersForSecretary.map(member => (
                               <SelectItem key={member.id} value={member.id}>
                                   {member.name}
                               </SelectItem>
                           ))}
                       </SelectContent>
                   </Select>
+                  <RoleSuggester
+                      role="secretary"
+                      members={members}
+                      attendance={attendance}
+                      excludeId={presenterId}
+                      onSelect={(id) => updateCurrentMeeting({ secretaryId: id })}
+                      disabled={!presenterId}
+                    />
+                </div>
+                <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>
+              </div>
+          </div>
+          
+          <Separator />
+          
+          {/* Agenda Section */}
+          <div>
+            <Label className="text-lg font-medium">Agenda</Label>
+            <form onSubmit={handleAddTopic} className="space-y-3 mt-2 border p-4 rounded-lg">
+              <div className="space-y-1">
+                <Label htmlFor="topic-title">Título del Tema</Label>
+                <Input id="topic-title" placeholder="Ej: Revisión de métricas de ventas" value={newTopicTitle} onChange={e => setNewTopicTitle(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="topic-duration">Duración (min)</Label>
-                <Input id="topic-duration" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} />
+                <Label htmlFor="topic-description">Resumen / Descripción (Opcional)</Label>
+                <Textarea id="topic-description" placeholder="Añade un breve resumen sobre el tema..." value={newTopicDescription} onChange={e => setNewTopicDescription(e.target.value)} rows={2} />
               </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className='space-y-1'>
+                    <Label htmlFor="topic-presenter">Encargado</Label>
+                    <Select value={newTopicPresenterId} onValueChange={setNewTopicPresenterId}>
+                        <SelectTrigger id="topic-presenter">
+                            <SelectValue placeholder="Encargado..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {sortedMembers.map(member => (
+                                <SelectItem key={member.id} value={member.id}>
+                                    {member.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="topic-duration">Duración (min)</Label>
+                  <Input id="topic-duration" type="number" value={newTopicDuration} onChange={e => setNewTopicDuration(Number(e.target.value))} />
+                </div>
+              </div>
+              <Button type="submit" className="w-full sm:w-auto" disabled={!newTopicTitle || !newTopicPresenterId}><PlusCircle className="mr-2" /> Añadir Tema</Button>
+            </form>
+            <div className="space-y-2 mt-4">
+              {agenda.length === 0 && <p className="text-muted-foreground text-center py-4">Aún no hay temas en la agenda.</p>}
+              {agenda.map(topic => {
+                const topicPresenter = members.find(m => m.id === topic.presenterId);
+                return (
+                <div key={topic.id} className="flex items-start gap-2 p-3 rounded-md border">
+                    <div className="flex-shrink-0 pt-1">
+                      {topicPresenter ? (
+                          <Avatar className="h-6 w-6">
+                              <AvatarImage src={topicPresenter.avatarUrl} alt={topicPresenter.name} />
+                              <AvatarFallback>{topicPresenter.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                      ) : <UserIcon className="w-6 h-6 text-muted-foreground" />}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className="font-semibold">{topic.title}</p>
+                      {topic.description && <p className="text-sm text-muted-foreground">{topic.description}</p>}
+                      <p className="text-xs text-muted-foreground">{topicPresenter?.name} - {topic.estimatedDuration} min</p>
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => removeTopic(topic.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0">
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+              )})}
             </div>
-            <Button type="submit" className="w-full sm:w-auto" disabled={!newTopicTitle || !newTopicPresenterId}><PlusCircle className="mr-2" /> Añadir Tema</Button>
-          </form>
-          <div className="space-y-2 mt-4">
-            {agenda.length === 0 && <p className="text-muted-foreground text-center py-4">Aún no hay temas en la agenda.</p>}
-            {agenda.map(topic => {
-              const topicPresenter = members.find(m => m.id === topic.presenterId);
-              return (
-              <div key={topic.id} className="flex items-start gap-2 p-3 rounded-md border">
-                  <div className="flex-shrink-0 pt-1">
-                    {topicPresenter ? (
-                        <Avatar className="h-6 w-6">
-                            <AvatarImage src={topicPresenter.avatarUrl} alt={topicPresenter.name} />
-                            <AvatarFallback>{topicPresenter.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                    ) : <UserIcon className="w-6 h-6 text-muted-foreground" />}
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="font-semibold">{topic.title}</p>
-                    {topic.description && <p className="text-sm text-muted-foreground">{topic.description}</p>}
-                    <p className="text-xs text-muted-foreground">{topicPresenter?.name} - {topic.estimatedDuration} min</p>
-                  </div>
-                   <Button size="icon" variant="ghost" onClick={() => removeTopic(topic.id)} className="text-muted-foreground hover:text-destructive flex-shrink-0">
-                       <Trash2 className="h-4 w-4" />
-                   </Button>
-              </div>
-            )})}
           </div>
         </div>
 
-        <Separator />
-
-        {/* Attendance Section */}
-        <div>
+        {/* Right Column */}
+        <div className="lg:col-span-2 space-y-3">
             <Label className="text-lg font-medium">Asistencia</Label>
             <div className="space-y-3 mt-2">
                 {sortedMembers.map(member => {
@@ -387,7 +389,7 @@ export default function MeetingDashboardPage() {
         </div>
 
       </CardContent>
-      <CardFooter className="justify-between items-center">
+      <CardFooter className="justify-between items-center pt-6">
         <SaveStatusIndicator />
         <Button onClick={startMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
           <Play className="mr-2" /> Iniciar Reunión
@@ -569,3 +571,5 @@ export default function MeetingDashboardPage() {
     </main>
   );
 }
+
+    
