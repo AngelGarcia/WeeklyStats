@@ -24,9 +24,13 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 
 export default function MeetingDashboardPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const {
     members,
     meetings,
@@ -114,6 +118,24 @@ export default function MeetingDashboardPage() {
       setNewTopicDescription('');
       setNewTopicPresenterId(undefined);
       setNewTopicDuration(5);
+    }
+  };
+  
+  const handleSaveEditedMeeting = async () => {
+    if (!currentMeeting) return;
+    try {
+        await saveEditedMeeting();
+        toast({
+            title: "Reunión actualizada",
+            description: "La reunión ha sido guardada de nuevo en el historial.",
+        });
+        router.push('/history');
+    } catch (e) {
+        toast({
+            variant: "destructive",
+            title: "Error al guardar",
+            description: "No se pudo guardar la reunión editada. Inténtalo de nuevo.",
+        });
     }
   };
 
@@ -403,7 +425,7 @@ export default function MeetingDashboardPage() {
         <CardFooter className="justify-between items-center pt-6">
             <SaveStatusIndicator />
             {isEditSession ? (
-                <Button onClick={saveEditedMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
+                <Button onClick={handleSaveEditedMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
                     <Check className="mr-2" /> Guardar Cambios y Finalizar
                 </Button>
             ) : (
