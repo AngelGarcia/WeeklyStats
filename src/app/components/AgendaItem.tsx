@@ -32,7 +32,7 @@ interface AgendaItemProps {
 }
 
 export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemProps) {
-  const [isActive, setIsActive] = useState(false);
+  const [isActive, setIsActive] = useState(topic.status === 'active');
   const [seconds, setSeconds] = useState(topic.actualDuration);
   const { toast } = useToast();
 
@@ -43,6 +43,11 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync local active state with prop from global state
+  useEffect(() => {
+    setIsActive(topic.status === 'active');
+  }, [topic.status]);
 
   useEffect(() => {
     // This robust timer logic accounts for browser throttling in background tabs.
@@ -64,32 +69,25 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
         clearInterval(timerIntervalRef.current);
       }
     };
-  }, [isActive]);
+  }, [isActive, seconds]);
   
   useEffect(() => {
-    // Sync with external state changes from the parent context
-    if (topic.status !== 'active' && isActive) {
-      setIsActive(false);
-    }
-    
-    // Only update the local `seconds` state from the prop if the timer isn't running.
+    // Sync the local seconds state from the prop, but only when the timer isn't active.
     // When the timer is active, this component is the source of truth for the elapsed time.
     if (!isActive) {
       setSeconds(topic.actualDuration);
     }
-  }, [topic, isActive]);
+  }, [topic.actualDuration, isActive]);
 
   const handleToggle = () => {
-    const newIsActive = !isActive;
-    setIsActive(newIsActive);
-    onUpdate(topic.id, { status: newIsActive ? 'active' : 'paused', actualDuration: seconds });
+    const newStatus = isActive ? 'paused' : 'active';
+    onUpdate(topic.id, { status: newStatus, actualDuration: seconds });
   };
 
   const handleReset = () => {
     if (isRecording) {
       handleStopRecording(false);
     }
-    setIsActive(false);
 
     if (topic.status === 'completed') {
       // "Re-open" the topic, keep the time.
@@ -105,7 +103,6 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
     if (isRecording) {
         handleStopRecording();
     }
-    setIsActive(false);
     onUpdate(topic.id, { status: 'completed', actualDuration: seconds });
   };
   
