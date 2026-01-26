@@ -41,6 +41,7 @@ type AppContextType = AppState & {
   deleteMeeting: (id: string) => void;
   reopenMeeting: (id: string) => Promise<void>;
   saveEditedMeeting: () => Promise<void>;
+  cancelEditMeeting: () => Promise<void>;
   isInitialized: boolean;
   updateCurrentMeeting: (payload: Partial<Meeting>) => void;
   lastMeetingSummary: Meeting | null;
@@ -93,6 +94,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [lastMeetingSummary, setLastMeetingSummary] = useState<Meeting | null>(null);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [originalMeetingOnEdit, setOriginalMeetingOnEdit] = useState<Meeting | null>(null);
   
   const isLoading = isUserLoading || membersLoading || meetingsLoading || criteriaLoading || isCreatingMeeting;
   const isInitialized = !isLoading;
@@ -378,6 +380,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         setLastMeetingSummary(finalMeetingData);
         setCurrentMeeting(null);
+        setOriginalMeetingOnEdit(null); // Clean up after any finalization
 
     } catch(e) {
         console.error("Failed to finalize meeting and update stats", e);
@@ -535,6 +538,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setSaveStatus('error');
       return;
     }
+    
+    setOriginalMeetingOnEdit(meetingToReopen);
 
     setSaveStatus('saving');
     try {
@@ -595,6 +600,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [firestore, members, allMeetings, currentMeeting]);
 
+  const cancelEditMeeting = useCallback(async () => {
+    if (!originalMeetingOnEdit) {
+      console.error("Cancel attempted without an original meeting state.");
+      throw new Error("Original meeting state not found for cancellation.");
+    }
+    
+    // "Finalize" the meeting again with its original data.
+    // This re-increments the stats that were decremented on 'reopen' and sets the status back to 'COMPLETED'.
+    const meetingToRestore = {
+      ...originalMeetingOnEdit,
+      status: 'COMPLETED' as MeetingStatus,
+    };
+    
+    await finalizeMeetingAndUpdateStats(meetingToRestore);
+  }, [originalMeetingOnEdit, finalizeMeetingAndUpdateStats]);
+
   const updateCriteria = useCallback(async (criteria: SurveyCriterion[]) => {
     if (!firestore) throw new Error("Firestore not initialized");
 
@@ -653,6 +674,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deleteMeeting,
       reopenMeeting,
       saveEditedMeeting,
+      cancelEditMeeting,
       isInitialized,
       isLoading,
       updateCurrentMeeting,
@@ -679,6 +701,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         deleteMeeting,
         reopenMeeting,
         saveEditedMeeting,
+        cancelEditMeeting,
         isInitialized,
         isLoading, 
         updateCurrentMeeting,

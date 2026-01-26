@@ -49,6 +49,7 @@ export default function MeetingDashboardPage() {
     saveStatus,
     surveyCriteria,
     saveEditedMeeting,
+    cancelEditMeeting,
   } = useAppContext();
 
   const [newTopicTitle, setNewTopicTitle] = useState('');
@@ -139,6 +140,23 @@ export default function MeetingDashboardPage() {
     }
   };
 
+  const handleCancelEdit = async () => {
+    try {
+      await cancelEditMeeting();
+      toast({
+        title: "Edición cancelada",
+        description: "No se han guardado los cambios. La reunión ha sido restaurada en el historial.",
+      });
+      router.push('/history');
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Error al cancelar",
+        description: "No se pudo restaurar la reunión. Por favor, inténtalo de nuevo.",
+      });
+    }
+  };
+
   const handlePlanNext = () => {
     resetCurrentMeeting();
   };
@@ -157,6 +175,19 @@ export default function MeetingDashboardPage() {
     oldDate.setHours(hours, minutes);
     updateCurrentMeeting({ date: oldDate.toISOString() });
   }
+
+  const handleActualStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!currentMeeting?.actualStartTime) return;
+    const newTime = e.target.value;
+    const [hours, minutes] = newTime.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return;
+
+    const newStartDate = parseISO(currentMeeting.actualStartTime);
+    newStartDate.setHours(hours);
+    newStartDate.setMinutes(minutes);
+    
+    updateCurrentMeeting({ actualStartTime: newStartDate.toISOString() });
+  };
 
   const handleAttendanceChange = (memberId: string, status: 'present' | 'absent', location?: 'physical' | 'online') => {
     const newAttendance = currentMeeting.attendance?.map(record => {
@@ -203,14 +234,16 @@ export default function MeetingDashboardPage() {
         <Card className="max-w-6xl mx-auto shadow-lg">
         <CardHeader>
             <CardTitle className="font-headline text-2xl flex items-center gap-2"><Users /> Configurar Reunión</CardTitle>
-            <CardDescription>Define los detalles, la agenda y la asistencia para la nueva reunión.</CardDescription>
+            <CardDescription>
+              {isEditSession ? "Editando una reunión del historial. Los cambios se guardarán sobre la entrada existente." : "Define los detalles, la agenda y la asistencia para la nueva reunión."}
+            </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 lg:grid-cols-5 gap-8">
             
             {/* Left Column */}
             <div className="lg:col-span-3 space-y-6">
             <div className="space-y-2">
-                <Label>Fecha y Hora</Label>
+                <Label>Fecha y Hora de la Reunión</Label>
                 <div className="flex gap-2">
                 <Popover>
                     <PopoverTrigger asChild>
@@ -243,6 +276,21 @@ export default function MeetingDashboardPage() {
                 </div>
             </div>
 
+            {isEditSession && actualStartTime && (
+                <div className="space-y-2">
+                    <Label htmlFor="actualStartTime">Hora de Inicio Real</Label>
+                    <div className="flex">
+                        <Input
+                            id="actualStartTime"
+                            type="time"
+                            value={format(parseISO(actualStartTime), 'HH:mm')}
+                            onChange={handleActualStartTimeChange}
+                            className="w-[120px]"
+                        />
+                    </div>
+                </div>
+            )}
+
             <div className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="presenter">Presentador</Label>
@@ -252,7 +300,7 @@ export default function MeetingDashboardPage() {
                         <SelectContent>
                         {sortedMembers.map(member => (
                             <SelectItem key={member.id} value={member.id}>
-                            {member.name} {member.id === suggestedPresenterId && '(Sugerido)'}
+                            {member.name} {member.id === suggestedPresenterId && !isEditSession && '(Sugerido)'}
                             </SelectItem>
                         ))}
                         </SelectContent>
@@ -264,7 +312,7 @@ export default function MeetingDashboardPage() {
                         onSelect={(id) => updateCurrentMeeting({ presenterId: id, secretaryId: null })}
                     />
                     </div>
-                    <p className="text-xs text-muted-foreground">El presentador de esta semana suele ser el secretario de la anterior.</p>
+                    {!isEditSession && <p className="text-xs text-muted-foreground">El presentador de esta semana suele ser el secretario de la anterior.</p>}
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="secretary">Secretario</Label>
@@ -290,7 +338,7 @@ export default function MeetingDashboardPage() {
                         disabled={!presenterId}
                         />
                     </div>
-                    <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>
+                    {!isEditSession && <p className="text-xs text-muted-foreground">Elige un voluntario o usa el sorteo para una selección justa.</p>}
                 </div>
             </div>
             
@@ -407,7 +455,7 @@ export default function MeetingDashboardPage() {
                                                 handleAttendanceChange(member.id, 'present', checked ? 'online' : 'physical');
                                             }}
                                             disabled={isAbsent}
-                                            aria-label="Cambiar entre asistencia física y online"
+                                            aria-label="Cambiar entre asistencia de oficina y casa"
                                         />
                                         <div className="flex flex-col items-center text-muted-foreground text-xs gap-1">
                                             <span>Casa</span>
@@ -425,9 +473,12 @@ export default function MeetingDashboardPage() {
         <CardFooter className="justify-between items-center pt-6">
             <SaveStatusIndicator />
             {isEditSession ? (
-                <Button onClick={handleSaveEditedMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
-                    <Check className="mr-2" /> Guardar Cambios y Finalizar
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleCancelEdit}>Cancelar</Button>
+                    <Button onClick={handleSaveEditedMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0}>
+                        <Check className="mr-2" /> Guardar Cambios y Finalizar
+                    </Button>
+                </div>
             ) : (
                 <Button onClick={startMeeting} disabled={!presenterId || !secretaryId || agenda.length === 0} className="w-full md:w-auto">
                     <Play className="mr-2" /> Iniciar Reunión

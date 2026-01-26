@@ -52,10 +52,15 @@ export default function HistoryPage() {
       const actual = parseISO(meeting.actualStartTime);
       const diffMinutes = (actual.getTime() - planned.getTime()) / (1000 * 60);
 
+      // Thresholds for punctuality:
+      // Early: More than 1 minute before planned time.
+      // On time: Up to 1 minute after planned time.
+      // Slightly late: Between 1 and 5 minutes after.
+      // Late: More than 5 minutes after.
       if (diffMinutes < -1) {
           return { text: `Adelanto de ${Math.abs(Math.round(diffMinutes))} min`, color: "text-blue-600", iconColor: "text-blue-500" };
       }
-      if (diffMinutes <= 1) { // A small grace period for "on time"
+      if (diffMinutes <= 1) { 
           return { text: "Puntual", color: "text-green-600", iconColor: "text-green-500" };
       }
       if (diffMinutes <= 5) {
@@ -223,10 +228,10 @@ export default function HistoryPage() {
                             </AlertDialog>
                         </div>
                         <AccordionTrigger className="w-full p-6 text-left hover:no-underline">
-                             <div className="flex items-start w-full">
+                             <div className="flex flex-col sm:flex-row items-start w-full">
                                 <div className="flex-1">
                                     <CardTitle className="font-headline">{format(parseISO(meeting.date), "d 'de' MMMM, yyyy", { locale: es })}</CardTitle>
-                                    <CardDescription className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-1 pt-1 text-xs">
+                                    <CardDescription className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs">
                                         <div className="flex items-center gap-2">
                                         <Clock className="w-4 h-4" /> 
                                         <span>
