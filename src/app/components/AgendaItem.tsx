@@ -42,26 +42,42 @@ export function AgendaItem({ topic, onUpdate, onRemove, members }: AgendaItemPro
   const [processingState, setProcessingState] = useState<'transcribing' | 'summarizing' | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    // This robust timer logic accounts for browser throttling in background tabs.
     if (isActive) {
-      interval = setInterval(() => {
-        setSeconds(s => s + 1);
+      const startTime = Date.now();
+      const startSeconds = seconds;
+
+      timerIntervalRef.current = setInterval(() => {
+        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+        setSeconds(startSeconds + elapsedSeconds);
       }, 1000);
+    } else if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
     }
+
     return () => {
-      if (interval) clearInterval(interval);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
     };
   }, [isActive]);
   
   useEffect(() => {
-    // Sync with external state changes
+    // Sync with external state changes from the parent context
     if (topic.status !== 'active' && isActive) {
       setIsActive(false);
     }
-    setSeconds(topic.actualDuration);
-  }, [topic]);
+    
+    // Only update the local `seconds` state from the prop if the timer isn't running.
+    // When the timer is active, this component is the source of truth for the elapsed time.
+    if (!isActive) {
+      setSeconds(topic.actualDuration);
+    }
+  }, [topic, isActive]);
 
   const handleToggle = () => {
     const newIsActive = !isActive;
