@@ -356,7 +356,7 @@ export default function MeetingDashboardPage() {
                                 </Avatar>
                                 <span className={cn("font-medium", isAbsent && "text-muted-foreground")}>{member.name}</span>
                             </div>
-                            <div className="flex items-center gap-x-6 gap-y-2">
+                            <div className="flex items-center gap-x-4 gap-y-2">
                                 <div className="flex items-center space-x-2">
                                     <Checkbox
                                         id={`absent-${member.id}`}
@@ -372,8 +372,11 @@ export default function MeetingDashboardPage() {
                                     <Label htmlFor={`absent-${member.id}`} className="font-normal cursor-pointer text-muted-foreground">Ausente</Label>
                                 </div>
 
-                                <div className={cn("flex items-center gap-2", isAbsent && "invisible")}>
-                                    <Building className="h-5 w-5 text-muted-foreground"/>
+                                <div className={cn("flex items-center gap-3", isAbsent && "invisible")}>
+                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <Building className="h-5 w-5" />
+                                        <span className="text-sm font-normal">Físico</span>
+                                    </div>
                                     <Switch
                                         id={`location-${member.id}`}
                                         checked={isOnline}
@@ -383,7 +386,10 @@ export default function MeetingDashboardPage() {
                                         disabled={isAbsent}
                                         aria-label="Cambiar entre asistencia física y online"
                                     />
-                                    <Laptop className="h-5 w-5 text-muted-foreground"/>
+                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <Laptop className="h-5 w-5" />
+                                        <span className="text-sm font-normal">Online</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
