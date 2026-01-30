@@ -400,6 +400,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setLastMeetingSummary(finalMeeting);
       setCurrentMeeting(null);
       setOriginalMeetingOnEdit(null);
+      setIsReopening(false); // Reset the lock
 
   }, [currentMeeting, finalizeMeetingAndUpdateStats]);
 
@@ -627,6 +628,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setLastMeetingSummary(null);
     setCurrentMeeting(null); 
     setOriginalMeetingOnEdit(null);
+    setIsReopening(false); // Reset the lock
   }, [originalMeetingOnEdit, finalizeMeetingAndUpdateStats, currentMeeting, firestore]);
 
   const createPastMeeting = useCallback(async () => {
