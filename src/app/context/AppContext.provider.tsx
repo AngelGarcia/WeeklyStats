@@ -11,7 +11,7 @@ import React, {
 } from 'react';
 import type { Member, Meeting, Topic, MeetingStatus, AttendanceRecord, SurveyCriterion, SurveyResult } from '@/lib/types';
 import { useFirebase, useUser, useMemoFirebase } from '@/firebase/provider';
-import { collection, doc, query, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, orderBy, writeBatch, deleteDoc } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { parseISO } from 'date-fns';
@@ -42,6 +42,7 @@ type AppContextType = AppState & {
   reopenMeeting: (id: string) => Promise<void>;
   saveEditedMeeting: () => Promise<void>;
   cancelEditMeeting: () => Promise<void>;
+  createPastMeeting: () => Promise<void>;
   isInitialized: boolean;
   updateCurrentMeeting: (payload: Partial<Meeting>) => void;
   lastMeetingSummary: Meeting | null;
@@ -609,23 +610,61 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [firestore, members, allMeetings, currentMeeting]);
 
   const cancelEditMeeting = useCallback(async () => {
-    if (!originalMeetingOnEdit) {
-      console.error("Cancel attempted without an original meeting state.");
-      throw new Error("Original meeting state not found for cancellation.");
+    if (originalMeetingOnEdit) {
+        // This is a true edit, restore the original meeting
+        const meetingToRestore = {
+            ...originalMeetingOnEdit,
+            status: 'COMPLETED' as MeetingStatus,
+        };
+        await finalizeMeetingAndUpdateStats(meetingToRestore);
+    } else if (currentMeeting) {
+        // This is cancelling a new historical entry, so just delete it
+        const meetingRef = doc(firestore, 'meetings', currentMeeting.id);
+        await deleteDocumentNonBlocking(meetingRef);
     }
     
-    // "Finalize" the meeting again with its original data.
-    // This re-increments the stats that were decremented on 'reopen' and sets the status back to 'COMPLETED'.
-    const meetingToRestore = {
-      ...originalMeetingOnEdit,
-      status: 'COMPLETED' as MeetingStatus,
-    };
-    
-    await finalizeMeetingAndUpdateStats(meetingToRestore);
+    // In both cases, reset the state
     setLastMeetingSummary(null);
-    setCurrentMeeting(null);
+    setCurrentMeeting(null); 
     setOriginalMeetingOnEdit(null);
-  }, [originalMeetingOnEdit, finalizeMeetingAndUpdateStats]);
+  }, [originalMeetingOnEdit, finalizeMeetingAndUpdateStats, currentMeeting, firestore]);
+
+  const createPastMeeting = useCallback(async () => {
+    if (!firestore || !members) {
+      throw new Error("Firestore o los miembros no están inicializados");
+    }
+
+    if (currentMeeting && (currentMeeting.status === 'IN_PROGRESS' || currentMeeting.status === 'SURVEY')) {
+      throw new Error("No puedes insertar una reunión pasada mientras otra está en progreso.");
+    }
+    
+    setIsReopening(true); // Use lock to prevent race condition
+    
+    try {
+        // Delete current placeholder if it exists
+        if (currentMeeting && currentMeeting.status === 'SETUP' && !currentMeeting.endTime) {
+          await deleteDoc(doc(firestore, 'meetings', currentMeeting.id));
+        }
+
+        const now = new Date().toISOString();
+        const newMeetingData: Omit<Meeting, 'id'> = {
+          date: now,
+          status: 'SETUP',
+          presenterId: null,
+          secretaryId: null,
+          agenda: [],
+          attendance: members.map(member => ({ memberId: member.id, status: 'present', location: 'physical' })),
+          endTime: now, // This is the key to trigger "edit mode" on the main page.
+        };
+
+        await addDocumentNonBlocking(collection(firestore, 'meetings'), newMeetingData);
+    } catch (e) {
+        console.error('Failed to create past meeting placeholder', e);
+        setIsReopening(false); // Ensure lock is released on error
+        throw e;
+    }
+  }, [firestore, currentMeeting, members]);
+
 
   const updateCriteria = useCallback(async (criteria: SurveyCriterion[]) => {
     if (!firestore) throw new Error("Firestore not initialized");
@@ -686,6 +725,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       reopenMeeting,
       saveEditedMeeting,
       cancelEditMeeting,
+      createPastMeeting,
       isInitialized,
       isLoading,
       updateCurrentMeeting,
@@ -713,6 +753,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         reopenMeeting,
         saveEditedMeeting,
         cancelEditMeeting,
+        createPastMeeting,
         isInitialized,
         isLoading, 
         updateCurrentMeeting,

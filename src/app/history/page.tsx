@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Home, Building, Star, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
+import { Clock, User, Mic, AlertCircle, Sparkles, Trash2, Users, Home, Building, Star, TrendingUp, TrendingDown, Pencil, PlusCircle } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -31,7 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 
 
 export default function HistoryPage() {
-  const { meetings, members, isInitialized, clearHistory, deleteMeeting, reopenMeeting, currentMeeting, surveyCriteria } = useAppContext();
+  const { meetings, members, isInitialized, clearHistory, deleteMeeting, reopenMeeting, currentMeeting, surveyCriteria, createPastMeeting } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -52,11 +52,6 @@ export default function HistoryPage() {
       const actual = parseISO(meeting.actualStartTime);
       const diffMinutes = (actual.getTime() - planned.getTime()) / (1000 * 60);
 
-      // Thresholds for punctuality:
-      // Early: More than 1 minute before planned time.
-      // On time: Up to 1 minute after planned time.
-      // Slightly late: Between 1 and 5 minutes after.
-      // Late: More than 5 minutes after.
       if (diffMinutes < -1) {
           return { text: `Adelanto de ${Math.abs(Math.round(diffMinutes))} min`, color: "text-blue-600", iconColor: "text-blue-500" };
       }
@@ -133,33 +128,55 @@ export default function HistoryPage() {
     }
   };
 
+  const handleInsertPastMeeting = async () => {
+    try {
+        await createPastMeeting();
+        toast({
+            title: "Preparando Inserción",
+            description: "Se ha preparado una reunión en blanco para que introduzcas los datos históricos.",
+        });
+        router.push('/');
+    } catch (e: any) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: e.message || "No se pudo preparar la inserción. Es posible que ya haya una reunión en progreso.",
+        });
+    }
+  };
+
 
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
             <h1 className="text-3xl font-headline font-bold">Historial de Reuniones</h1>
-            {sortedMeetings.length > 0 && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Limpiar Historial
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminarán permanentemente todas las reuniones completadas del historial.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={clearHistory}>Sí, eliminar todo</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            )}
+             <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={handleInsertPastMeeting}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Insertar Reunión Pasada
+                </Button>
+                {sortedMeetings.length > 0 && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Limpiar Historial
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminarán permanentemente todas las reuniones completadas del historial.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={clearHistory}>Sí, eliminar todo</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
+            </div>
         </div>
         {sortedMeetings.length === 0 ? (
           <Card>
