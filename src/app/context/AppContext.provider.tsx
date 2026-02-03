@@ -118,7 +118,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (criteriaFromDb) {
         if (criteriaFromDb.length > 0) {
-            setSurveyCriteria(criteriaFromDb.sort((a, b) => a.name.localeCompare(b.name)));
+            // De-duplicate criteria based on name, keeping the first one encountered.
+            const uniqueCriteriaMap = new Map<string, SurveyCriterion>();
+            criteriaFromDb.forEach(criterion => {
+                if (!uniqueCriteriaMap.has(criterion.name)) {
+                    uniqueCriteriaMap.set(criterion.name, criterion);
+                }
+            });
+            const uniqueCriteria = Array.from(uniqueCriteriaMap.values());
+
+            // If duplicates were found, trigger a cleanup in Firestore.
+            if (uniqueCriteria.length < criteriaFromDb.length) {
+                const idsToKeep = new Set(uniqueCriteria.map(c => c.id));
+                const idsToDelete = criteriaFromDb
+                    .filter(c => !idsToKeep.has(c.id))
+                    .map(c => c.id);
+
+                if (idsToDelete.length > 0 && firestore) {
+                    const batch = writeBatch(firestore);
+                    idsToDelete.forEach(id => {
+                        const docRef = doc(firestore, 'surveyCriteria', id);
+                        batch.delete(docRef);
+                    });
+                    // Non-blocking cleanup
+                    batch.commit().catch(e => console.error("Failed to clean up duplicate criteria", e));
+                }
+            }
+            
+            setSurveyCriteria(uniqueCriteria.sort((a, b) => a.name.localeCompare(b.name)));
+
         } else if (firestore && criteriaCollection && !criteriaLoading && criteriaFromDb.length === 0) {
             // If criteria is empty in DB, populate with initial data
             const batch = writeBatch(firestore);
