@@ -37,19 +37,23 @@ export default function SettingsPage() {
   };
 
   const handleCriterionChange = (index: number, field: 'name' | 'weight', value: string | number) => {
-    const newCriteria = [...criteria];
-    const criterion = newCriteria[index];
-
-    if (field === 'weight') {
-        const numValue = Number(value);
-        if (numValue >= 0 && numValue <= 100) {
-            criterion.weight = numValue;
+    setCriteria(prevCriteria =>
+      prevCriteria.map((criterion, i) => {
+        if (i === index) {
+          const updatedCriterion = { ...criterion };
+          if (field === 'weight') {
+            const numValue = Number(value);
+            if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+              updatedCriterion.weight = numValue;
+            }
+          } else {
+            updatedCriterion.name = String(value);
+          }
+          return updatedCriterion;
         }
-    } else {
-        criterion.name = String(value);
-    }
-    
-    setCriteria(newCriteria);
+        return criterion;
+      })
+    );
   };
 
   const handleSaveChanges = async () => {
